@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Kana Memory</title>
+  <title>Kana Quiz</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
@@ -11,14 +11,14 @@
 </head>
 <body>
   <header class="top">
-    <h1><span lang="ja">かな</span> Memory</h1>
+    <h1><span lang="ja">かな</span> Quiz</h1>
   </header>
 
   <main>
     <section id="menu" class="menu">
       <fieldset>
-        <legend>1. What to match</legend>
-        <div id="mode-list" class="mode-list"></div>
+        <legend>1. Mode</legend>
+        <div id="mode-list"></div>
       </fieldset>
 
       <fieldset>
@@ -31,8 +31,13 @@
       </fieldset>
 
       <fieldset>
-        <legend>3. Board size</legend>
-        <div class="chip-list" id="size-list"></div>
+        <legend>3. Difficulty</legend>
+        <div id="level-list" class="level-list"></div>
+      </fieldset>
+
+      <fieldset id="input-field" hidden>
+        <legend>4. Answer with</legend>
+        <div id="input-list" class="chip-list"></div>
       </fieldset>
 
       <div class="start-row">
@@ -41,31 +46,47 @@
       </div>
     </section>
 
-    <section id="game" class="game" hidden>
+    <section id="quiz" class="quiz" hidden>
       <div class="hud">
-        <span id="hud-mode" class="hud-mode"></span>
-        <span>Moves <strong id="hud-moves">0</strong></span>
-        <span>Pairs <strong id="hud-pairs">0/0</strong></span>
-        <span>Time <strong id="hud-time">0:00</strong></span>
-        <span class="hud-buttons">
-          <button type="button" id="restart">New game</button>
-          <button type="button" id="back">Menu</button>
-        </span>
+        <span id="q-mode" class="hud-mode"></span>
+        <span>Question <strong id="q-progress"></strong></span>
+        <span>Score <strong id="q-score"></strong></span>
+        <span>Streak <strong id="q-streak"></strong></span>
+        <span class="hud-buttons"><button type="button" id="quit">Quit</button></span>
       </div>
-      <div id="board" class="board"></div>
+      <div id="timer" class="timer" hidden><span></span></div>
+
+      <div id="prompt" class="prompt"></div>
+
+      <div id="choices" class="choices"></div>
+
+      <form id="type-form" class="type-form" autocomplete="off" hidden>
+        <input id="type-input" type="text" spellcheck="false" autocapitalize="off">
+        <button type="submit" class="primary">Check</button>
+      </form>
+      <div id="keyboard" class="keyboard" hidden></div>
+
+      <div id="feedback" class="feedback" hidden>
+        <p id="feedback-text" class="feedback-text"></p>
+        <p id="feedback-info" class="feedback-info" lang="ja"></p>
+        <button type="button" id="next" class="primary">Next ⏎</button>
+      </div>
+    </section>
+
+    <section id="results" class="results" hidden>
+      <h2 lang="ja" id="results-title"></h2>
+      <p id="results-stats" class="results-stats"></p>
+      <p id="results-best" class="muted"></p>
+      <div id="missed-wrap">
+        <h3>To review</h3>
+        <ul id="missed" class="missed"></ul>
+      </div>
+      <div class="dialog-buttons">
+        <button type="button" id="again" class="primary">Play again</button>
+        <button type="button" id="to-menu">Menu</button>
+      </div>
     </section>
   </main>
-
-  <dialog id="win">
-    <h2>おめでとう!</h2>
-    <p class="muted">omedetou — congratulations</p>
-    <p id="win-stats"></p>
-    <p id="win-best" class="muted"></p>
-    <div class="dialog-buttons">
-      <button type="button" id="win-again" class="primary">Play again</button>
-      <button type="button" id="win-menu">Menu</button>
-    </div>
-  </dialog>
 
   <script src="data.js"></script>
   <script src="game.js"></script>

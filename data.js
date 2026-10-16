@@ -193,3 +193,21 @@ const WORDS = [
   ["あたらしい", "atarashii", "new", "新しい", "adjectives"],
   ["ふるい", "furui", "old (things)", "古い", "adjectives"],
 ].map(([kana, romaji, english, kanji, theme]) => ({ kana, romaji, english, kanji, theme }));
+
+// Groups of characters that are easy to confuse visually. Used to make wrong
+// options harder at higher difficulty. A character may appear in several groups.
+const KANA_LOOKALIKES = [
+  // katakana
+  "シツ", "ソン", "ソリ", "ンリ", "ノメ", "クケタ", "ウワフ", "コユロ", "チテ", "ナメ",
+  "ヌス", "マム", "ルレ", "エユ", "セヤ", "カヤ", "ヲヨ", "ラヲ", "サセ", "ホオ",
+  // hiragana
+  "ぬめ", "ねれわ", "さちき", "はほま", "るろ", "あおめ", "いこり", "うらつ", "けは",
+  "にこ", "しも", "くへ", "たな", "ゆよ", "ぬね", "めの", "すお", "そろ",
+];
+
+// Lookalike kanji (only pairs where at least one appears in WORDS matter).
+const KANJI_LOOKALIKES = [
+  "大犬太", "木本", "人入", "白日目", "鳥馬魚熊", "雨雪電", "手毛", "男田", "女安妹姉",
+  "話読語", "飲食", "見目", "茶菜花", "青新", "母毎", "子学", "赤黄", "山出", "川三",
+  "牛午", "今会", "夜家", "店広", "書昼", "耳取", "足走", "空穴", "星生", "古口",
+];
