@@ -289,6 +289,7 @@ legend { font-weight: 600; padding: 0 6px; }
 .feedback.bad { border-color: var(--accent); background: var(--miss); }
 .feedback-text { margin: 0; font-size: 1.3rem; font-weight: 700; font-family: var(--jp); }
 .feedback-info { margin: 4px 0 0; font-size: 1.1rem; color: var(--muted); }
+.feedback-yours { margin: 6px 0 0; font-size: 1.1rem; color: var(--accent); font-weight: 600; }
 .feedback .primary { margin-top: 12px; }
 
 @keyframes shake {
@@ -313,9 +314,16 @@ legend { font-weight: 600; padding: 0 6px; }
 .missed { list-style: none; padding: 0; margin: 0; text-align: left; }
 .missed li { padding: 8px 4px; border-top: 1px solid var(--border); font-size: 1.2rem; }
 .missed-info { display: block; font-size: 0.9rem; }
+.missed-yours { display: block; font-size: 0.9rem; color: var(--accent); }
 .dialog-buttons { display: flex; justify-content: center; gap: 10px; margin-top: 20px; }
 
 @media (prefers-reduced-motion: reduce) {
   .option, .kb-key { transition: none; }
   .option.wrong, .type-form input.wrong { animation: none; }
 }
+
+/* ---- Hidden-options mode ---- */
+
+.hide-note { margin: 8px 0 0; font-size: 0.9em; }
+.reveal { display: block; width: 100%; padding: 18px; font-size: 1.3rem; }
+.muted-key { opacity: 0.75; font-weight: 400; font-size: 0.85em; }

@@ -31,7 +31,9 @@ A static webpage for learning Japanese: quizzes that match kana, words and kanji
   - Romaji answers are normalized: lowercase, spaces/hyphens/apostrophes removed, macrons expanded (ō → ou, ū → uu, ā → aa).
   - Kana answers must match exactly.
 - **Typing modes** answer with `settings.input`: `"kana"` (read-only field filled by the on-screen keyboard) or `"romaji"` (plain text field).
-- **Best scores** are saved per mode + level (+ input method for typing modes) under keys like `best:<mode>:<level>[:<input>]`.
+- **Wrong answers** show what the player answered, written in the other scripts (`describeAnswer`): a picked kana shows its romaji (ツ (tsu)); a picked romaji shows its kana; picked kanji or English show the reading and meaning. Typed kana is converted with `kanaToRomaji` and looked up in `WORDS`, so typing いぬ shows "(inu = 犬 · dog)". The missed list on the results screen shows the same.
+- **Hide options** (`settings.hideOptions`, multiple-choice modes only): options stay hidden until the player clicks Show or presses Space or Enter. There is no timer before that; afterwards the timer is the level's shorter `revealTime` (5/6/3.5/2 s, so even Easy gets a time limit). Answer time is still measured from when the question appeared.
+- **Best scores** are saved per mode + level (+ input method for typing modes) under keys like `best:<mode>:<level>[:<input>]`. Hidden-options rounds add `:hidden` to the key.
 
 ## User preferences (from past sessions)
 - Text on the prompt and options should be **very large**. The user asked for "way bigger" once already.

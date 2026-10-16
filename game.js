@@ -81,6 +81,37 @@
     return null;
   }
 
+  // ---- Kana → romaji (to explain what the player answered) ---------------------
+
+  const KANA_TO_ROMAJI = new Map();
+  for (const k of KANA) {
+    if (!KANA_TO_ROMAJI.has(k.hira)) KANA_TO_ROMAJI.set(k.hira, k.romaji);
+    if (!KANA_TO_ROMAJI.has(k.kata)) KANA_TO_ROMAJI.set(k.kata, k.romaji);
+  }
+  for (const [small, r] of [["ぁ", "a"], ["ぃ", "i"], ["ぅ", "u"], ["ぇ", "e"], ["ぉ", "o"], ["ゃ", "ya"], ["ゅ", "yu"], ["ょ", "yo"], ["ゎ", "wa"]]) {
+    KANA_TO_ROMAJI.set(small, r);
+  }
+
+  function kanaToRomaji(str) {
+    const chars = [...str];
+    let out = "";
+    let double = false; // pending small っ
+    for (let i = 0; i < chars.length; i++) {
+      const pair = chars[i] + (chars[i + 1] || "");
+      let r;
+      if (KANA_TO_ROMAJI.has(pair)) { r = KANA_TO_ROMAJI.get(pair); i++; }
+      else if (chars[i] === "っ" || chars[i] === "ッ") { double = true; continue; }
+      else if (chars[i] === "ー") { r = out.slice(-1); }
+      else r = KANA_TO_ROMAJI.get(chars[i]) ?? chars[i];
+      if (double) {
+        out += r.startsWith("ch") ? "t" : r[0];
+        double = false;
+      }
+      out += r;
+    }
+    return out;
+  }
+
   // ---- Similarity -------------------------------------------------------------
 
   function groupLookup(groups) {
@@ -207,10 +238,10 @@
   ];
 
   const LEVELS = [
-    { id: "easy", label: "Easy", options: 4, choiceTime: 0, typeTime: 0, share: 0 },
-    { id: "medium", label: "Medium", options: 6, choiceTime: 12, typeTime: 30, share: 0.5 },
-    { id: "hard", label: "Hard", options: 9, choiceTime: 7, typeTime: 18, share: 0.8 },
-    { id: "expert", label: "Expert", options: 12, choiceTime: 4, typeTime: 10, share: 1 },
+    { id: "easy", label: "Easy", options: 4, choiceTime: 0, typeTime: 0, revealTime: 5, share: 0 },
+    { id: "medium", label: "Medium", options: 6, choiceTime: 12, typeTime: 30, revealTime: 6, share: 0.5 },
+    { id: "hard", label: "Hard", options: 9, choiceTime: 7, typeTime: 18, revealTime: 3.5, share: 0.8 },
+    { id: "expert", label: "Expert", options: 12, choiceTime: 4, typeTime: 10, revealTime: 2, share: 1 },
   ];
 
   const INPUTS = [
@@ -237,6 +268,7 @@
       mode: "hira-romaji",
       level: "easy",
       input: "kana",
+      hideOptions: false,
       filters: { kana: ["a", "ka", "sa"], words: ["animals", "food", "colors"], kanji: ["numbers", "nature", "body"] },
     },
     store.get("settings", {})
@@ -245,6 +277,7 @@
 
   const currentMode = () => MODES.find((m) => m.id === settings.mode) || MODES[0];
   const currentLevel = () => LEVELS.find((l) => l.id === settings.level) || LEVELS[0];
+  const hidingOptions = () => currentMode().type === "choice" && settings.hideOptions;
 
   // Typing modes answer with the kana reading or its romaji.
   function answerFace(mode, e) {
@@ -297,6 +330,7 @@
     $("input-list").replaceChildren(
       ...INPUTS.map((i) => radio("input", i.id, i.id === settings.input, el("span", { textContent: i.label })))
     );
+    $("hide-options").checked = settings.hideOptions;
 
     renderFilters();
   }
@@ -335,6 +369,8 @@
     else if (mode.type === "choice" && n < level.options) msg = `${items.length} items — only ${n} options per question with this selection.`;
     else msg = `${items.length} items available.`;
     $("available").textContent = msg;
+    $("hide-field").hidden = mode.type !== "choice";
+    $("hide-note").textContent = `Think of the answer first, then reveal. You get ${level.revealTime}s to pick once the options appear.`;
   }
 
   $("mode-list").addEventListener("change", (ev) => {
@@ -346,6 +382,10 @@
     settings.level = ev.target.value;
     saveSettings();
     updateAvailable();
+  });
+  $("hide-options").addEventListener("change", (ev) => {
+    settings.hideOptions = ev.target.checked;
+    saveSettings();
   });
   $("input-list").addEventListener("change", (ev) => {
     settings.input = ev.target.value;
@@ -371,7 +411,7 @@
   const state = {
     token: 0, mode: null, level: null, pool: [], questions: [], index: 0,
     score: 0, streak: 0, bestStreak: 0, missed: [], times: [],
-    answered: false, startedAt: 0, deadline: 0, raf: 0, options: [],
+    answered: false, revealed: true, startedAt: 0, deadline: 0, raf: 0, options: [],
   };
 
   const showScreen = (id) => {
@@ -392,7 +432,7 @@
     state.questions.length = QUESTIONS_PER_ROUND;
     Object.assign(state, { index: 0, score: 0, streak: 0, bestStreak: 0, missed: [], times: [] });
 
-    $("q-mode").textContent = `${state.mode.label} · ${state.level.label}`;
+    $("q-mode").textContent = `${state.mode.label} · ${state.level.label}${hidingOptions() ? " · options hidden" : ""}`;
     showScreen("quiz");
     renderQuestion();
   }
@@ -447,6 +487,8 @@
     const { mode, level } = state;
     const item = state.questions[state.index];
     state.answered = false;
+    state.revealed = !hidingOptions();
+    state.startedAt = performance.now();
     state.token++;
 
     $("q-progress").textContent = `${state.index + 1}/${QUESTIONS_PER_ROUND}`;
@@ -459,7 +501,8 @@
     $("prompt").replaceChildren(el("span", { className: "tag", textContent: p.kind }), faceNode(p));
 
     const typing = mode.type === "typing";
-    $("choices").hidden = typing;
+    $("choices").hidden = typing || !state.revealed;
+    $("reveal").hidden = state.revealed;
     $("type-form").hidden = !typing;
     $("keyboard").hidden = !(typing && settings.input === "kana");
 
@@ -492,19 +535,31 @@
       );
     }
 
-    startTimer(typing ? level.typeTime : level.choiceTime);
+    if (!state.revealed) {
+      startTimer(0);
+      $("reveal").focus();
+    } else startTimer(typing ? level.typeTime : level.choiceTime);
+  }
+
+  // Hidden-options mode: the player recalls the answer first, then reveals the
+  // options and gets the shorter revealTime to pick.
+  function reveal() {
+    if (state.revealed || state.answered) return;
+    state.revealed = true;
+    $("reveal").hidden = true;
+    $("choices").hidden = false;
+    startTimer(state.level.revealTime);
   }
 
   // ---- Timer ------------------------------------------------------------------
 
   function startTimer(secs) {
     cancelAnimationFrame(state.raf);
-    state.startedAt = performance.now();
     const bar = $("timer");
     bar.hidden = !secs;
     if (!secs) return;
     const fill = bar.firstElementChild;
-    state.deadline = state.startedAt + secs * 1000;
+    state.deadline = performance.now() + secs * 1000;
     const tick = (now) => {
       const left = Math.max(0, state.deadline - now);
       fill.style.width = `${(left / (secs * 1000)) * 100}%`;
@@ -537,6 +592,35 @@
     return { accepted, norm };
   }
 
+  // Explain the wrong answer in terms of the other scripts, e.g. "ツ (tsu)",
+  // "犬 (いぬ · inu · dog)", or a typed "ねく (neku)".
+  function describeAnswer(choice, typed) {
+    const { mode } = state;
+    if (mode.type === "choice") {
+      if (choice == null) return "";
+      const e = state.options[choice];
+      const f = mode.answer(e);
+      if (mode.source === "kana") {
+        return f.kind === "romaji" ? `${f.text} (${mode.scripts.map((s) => e[s]).join(" · ")})` : `${f.text} (${e.romaji})`;
+      }
+      const reading = `${e.kana} · ${e.romaji}`;
+      switch (f.kind) {
+        case "kanji": return `${f.text} (${reading} · ${e.english})`;
+        case "hiragana": return `${f.text} (${e.romaji} · ${e.english})`;
+        case "romaji": return `${f.text} (${e.kana} · ${e.english})`;
+        default: return `${f.text} (${e.kanji ? e.kanji + " · " : ""}${reading})`;
+      }
+    }
+    if (typed == null) return "";
+    const t = typed.trim();
+    if (settings.input === "kana") {
+      const word = WORDS.find((w) => w.kana === t);
+      return `${t} (${kanaToRomaji(t)}${word ? " = " + (word.kanji ? word.kanji + " · " : "") + word.english : ""})`;
+    }
+    const word = WORDS.find((w) => normalizeRomaji(w.romaji) === normalizeRomaji(t));
+    return word ? `${t} (${word.kana} = ${word.kanji ? word.kanji + " · " : ""}${word.english})` : t;
+  }
+
   function answer({ choice = null, typed = null, timeout = false }) {
     if (state.answered) return;
     state.answered = true;
@@ -567,6 +651,7 @@
       $("keyboard").querySelectorAll("button").forEach((b) => (b.disabled = true));
     }
 
+    const yours = correct ? "" : describeAnswer(choice, typed);
     state.times.push(performance.now() - state.startedAt);
     if (correct) {
       state.score++;
@@ -574,7 +659,7 @@
       state.bestStreak = Math.max(state.bestStreak, state.streak);
     } else {
       state.streak = 0;
-      state.missed.push({ prompt: mode.prompt(item).text, answer: correctFace.text, info: SOURCES[mode.source].info(item) });
+      state.missed.push({ prompt: mode.prompt(item).text, answer: correctFace.text, info: SOURCES[mode.source].info(item), yours });
     }
     $("q-score").textContent = state.score;
     $("q-streak").textContent = state.streak;
@@ -586,6 +671,8 @@
       ? "正解! Correct"
       : `${timeout ? "Time's up!" : "Not quite."} Answer: ${correctFace.text}`;
     $("feedback-info").textContent = SOURCES[mode.source].info(item);
+    $("feedback-yours").hidden = correct || !yours;
+    $("feedback-yours").textContent = yours ? `You answered: ${yours}` : "";
     $("next").hidden = correct;
 
     if (correct) {
@@ -614,6 +701,7 @@
     if (v.trim()) answer({ typed: v });
   });
 
+  $("reveal").addEventListener("click", reveal);
   $("next").addEventListener("click", () => state.answered && next());
 
   document.addEventListener("keydown", (ev) => {
@@ -623,10 +711,18 @@
       if (ev.target.tagName === "BUTTON" || inField) return; // native activation / form submit
       ev.preventDefault();
       if (state.answered) next();
+      else if (!state.revealed) reveal();
       else if (state.mode.type === "typing") $("type-form").requestSubmit();
       return;
     }
     if (inField || state.answered) return;
+    if (!state.revealed) {
+      if (ev.key === " " && ev.target.tagName !== "BUTTON") {
+        ev.preventDefault();
+        reveal();
+      }
+      return;
+    }
     if (state.mode.type === "choice" && /^[1-9]$/.test(ev.key)) {
       const i = Number(ev.key) - 1;
       if (i < state.options.length) answer({ choice: i });
@@ -714,7 +810,7 @@
     const avg = state.times.reduce((a, b) => a + b, 0) / state.times.length;
     const pct = Math.round((state.score / QUESTIONS_PER_ROUND) * 100);
 
-    const key = `best:${mode.id}:${level.id}${mode.type === "typing" ? ":" + settings.input : ""}`;
+    const key = `best:${mode.id}:${level.id}${mode.type === "typing" ? ":" + settings.input : ""}${hidingOptions() ? ":hidden" : ""}`;
     const best = store.get(key, null);
     const isBest = !best || state.score > best.score || (state.score === best.score && avg < best.avg);
     if (isBest) store.set(key, { score: state.score, avg });
@@ -734,6 +830,7 @@
           el("span", { className: "muted", textContent: " → " }),
           el("strong", { lang: "ja", textContent: m.answer }),
           el("span", { className: "missed-info muted", lang: "ja", textContent: m.info }),
+          m.yours ? el("span", { className: "missed-yours", lang: "ja", textContent: `You answered: ${m.yours}` }) : "",
         ])
       )
     );
