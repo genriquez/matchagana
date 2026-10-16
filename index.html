@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kana Memory</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="top">
+    <h1><span lang="ja">かな</span> Memory</h1>
+  </header>
+
+  <main>
+    <section id="menu" class="menu">
+      <fieldset>
+        <legend>1. What to match</legend>
+        <div id="mode-list" class="mode-list"></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>2. Content</legend>
+        <div class="filter-actions">
+          <button type="button" class="link" id="filter-all">Select all</button>
+          <button type="button" class="link" id="filter-none">Clear</button>
+        </div>
+        <div id="filter-list" class="chip-list"></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>3. Board size</legend>
+        <div class="chip-list" id="size-list"></div>
+      </fieldset>
+
+      <div class="start-row">
+        <button type="button" id="start" class="primary">Start</button>
+        <span id="available" class="muted"></span>
+      </div>
+    </section>
+
+    <section id="game" class="game" hidden>
+      <div class="hud">
+        <span id="hud-mode" class="hud-mode"></span>
+        <span>Moves <strong id="hud-moves">0</strong></span>
+        <span>Pairs <strong id="hud-pairs">0/0</strong></span>
+        <span>Time <strong id="hud-time">0:00</strong></span>
+        <span class="hud-buttons">
+          <button type="button" id="restart">New game</button>
+          <button type="button" id="back">Menu</button>
+        </span>
+      </div>
+      <div id="board" class="board"></div>
+    </section>
+  </main>
+
+  <dialog id="win">
+    <h2>おめでとう!</h2>
+    <p class="muted">omedetou — congratulations</p>
+    <p id="win-stats"></p>
+    <p id="win-best" class="muted"></p>
+    <div class="dialog-buttons">
+      <button type="button" id="win-again" class="primary">Play again</button>
+      <button type="button" id="win-menu">Menu</button>
+    </div>
+  </dialog>
+
+  <script src="data.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>
