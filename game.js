@@ -19,7 +19,7 @@
   const store = {
     get(key, fallback) {
       try {
-        const v = localStorage.getItem("kana-quiz:" + key);
+        const v = localStorage.getItem("matchagana:" + key);
         return v == null ? fallback : JSON.parse(v);
       } catch {
         return fallback;
@@ -27,7 +27,7 @@
     },
     set(key, value) {
       try {
-        localStorage.setItem("kana-quiz:" + key, JSON.stringify(value));
+        localStorage.setItem("matchagana:" + key, JSON.stringify(value));
       } catch {}
     },
   };

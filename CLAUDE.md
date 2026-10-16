@@ -1,4 +1,6 @@
-# Kana Quiz
+# Matchagana
+
+Also written Match-a-gana: a play on "match" + "kana" (hiragana/katakana) and the Japanese word matcha (抹茶). Use the name Matchagana throughout the code, page and docs.
 
 A static webpage for learning Japanese: quizzes that match kana, words and kanji to romaji and English. Plain HTML/CSS/vanilla JS with no build step and no dependencies (only the Noto Sans JP font from Google Fonts, with system fonts as fallback). Open `index.html` directly (works from `file://`) or serve the folder from any static host.
 
@@ -13,7 +15,7 @@ A static webpage for learning Japanese: quizzes that match kana, words and kanji
   - `WORD_THEMES` + `WORDS`: `{ kana, romaji, english, kanji|null, theme }`. About 108 words in 12 themes. Kanji modes only use words that have `kanji`.
   - `KANA_LOOKALIKES`, `KANJI_LOOKALIKES`: strings of characters that are easy to confuse, used to pick tricky wrong options.
 - `game.js`: the whole app, in one IIFE (immediately invoked function). Sections, in order:
-  1. Helpers: `$`, `el`, `shuffle`, `store` (localStorage under the `kana-quiz:` prefix, wrapped in try/catch), `levenshtein`.
+  1. Helpers: `$`, `el`, `shuffle`, `store` (localStorage under the `matchagana:` prefix, wrapped in try/catch), `levenshtein`.
   2. Kana modifier tables (`DAK`, `HAN`, `SMALL`) and `applyModifier`, used by the on-screen keyboard.
   3. Similarity scoring: `kanaSimilarity` (looks alike + sounds alike + romaji edit distance) and `wordSimilarity` (weighted by the mode's `focus`: `reading` | `meaning` | `kanji`).
   4. `MODES`: each has `{ id, group, label, sample, source, type: "choice"|"typing", prompt, answer, scripts|focus }`. Also `LEVELS`, `INPUTS` and `SOURCES` (pool, filter groups, the full-entry text shown after answering, and the similarity function).

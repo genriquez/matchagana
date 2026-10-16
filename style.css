@@ -59,6 +59,7 @@ body {
 
 .top { max-width: 960px; margin: 0 auto; padding: 20px 0 8px; }
 .top h1 { margin: 0; font-size: 1.6rem; }
+.tagline { margin: 2px 0 0; font-size: 0.95rem; }
 main { max-width: 960px; margin: 0 auto; }
 .muted { color: var(--muted); }
 
