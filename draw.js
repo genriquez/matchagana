@@ -7,6 +7,8 @@
 // two-way chamfer distance: how far each inked pixel is from the other image's
 // nearest ink. Comparing against the *nearest* ink makes it tolerant of line
 // thickness differences between a finger and the font.
+// On easier levels each stroke may first be shifted a few grid px on its own
+// toward where it fits the glyph best (see bestOffsets), forgiving misplaced strokes.
 
 const Draw = (() => {
   const GRID = 64;
@@ -100,20 +102,32 @@ const Draw = (() => {
     ctx.stroke();
   }
 
-  // Draw strokes scaled so their bounding box fits FIT of an S×S square, centered.
-  function drawStrokesFitted(ctx, strokes, S, lineWidth, color) {
+  // Strokes rescaled so their bounding box fits FIT of an S×S square, centered.
+  function fitStrokes(strokes, S) {
     const pts = strokes.flat();
-    if (!pts.length) return;
     const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
     const minX = Math.min(...xs), minY = Math.min(...ys);
     const w = Math.max(...xs) - minX, h = Math.max(...ys) - minY;
     const scale = (S * FIT) / Math.max(w, h, 1);
     const ox = (S - w * scale) / 2, oy = (S - h * scale) / 2;
+    return strokes.map((s) => s.map(([x, y]) => [ox + (x - minX) * scale, oy + (y - minY) * scale]));
+  }
+
+  // Trace already-positioned strokes, each optionally moved by offsets[i] = [dx, dy].
+  function traceStrokes(ctx, strokes, lineWidth, color, offsets = null) {
     ctx.strokeStyle = color;
     ctx.lineWidth = lineWidth;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
-    for (const s of strokes) tracePath(ctx, s.map(([x, y]) => [ox + (x - minX) * scale, oy + (y - minY) * scale]));
+    strokes.forEach((s, i) => {
+      const [dx, dy] = offsets ? offsets[i] : [0, 0];
+      tracePath(ctx, s.map(([x, y]) => [x + dx, y + dy]));
+    });
+  }
+
+  function drawStrokesFitted(ctx, strokes, S, lineWidth, color) {
+    if (!strokes.flat().length) return;
+    traceStrokes(ctx, fitStrokes(strokes, S), lineWidth, color);
   }
 
   // ---- Reference glyphs ------------------------------------------------------
@@ -241,15 +255,68 @@ const Draw = (() => {
     return userGridCache.get(strokes);
   }
 
-  // Score 0–1 for how well `strokes` match character `ch`.
-  async function match(strokes, ch) {
+  const refMapCache = new Map();
+  const refMap = (ch) => {
+    if (!refMapCache.has(ch)) refMapCache.set(ch, distanceMap(refGrid(ch).bin));
+    return refMapCache.get(ch);
+  };
+
+  // For each stroke on its own, find the shift (up to maxShift grid px each way)
+  // that brings its ink closest to the reference glyph. Small shifts are
+  // preferred when the fit is about equal, so tidy drawings stay put.
+  function bestOffsets(gridStrokes, map, maxShift) {
+    const step = maxShift > 3 ? 2 : 1;
+    const OUTSIDE = 30;
+    return gridStrokes.map((s) => {
+      const { bin } = rasterize((g) => traceStrokes(g, [s], LINE, "#000"));
+      const xs = [], ys = [];
+      for (let i = 0; i < bin.length; i++) {
+        if (bin[i]) {
+          xs.push(i % GRID);
+          ys.push((i / GRID) | 0);
+        }
+      }
+      if (!xs.length) return [0, 0];
+      const cost = (dx, dy) => {
+        let sum = 0;
+        for (let k = 0; k < xs.length; k++) {
+          const x = xs[k] + dx, y = ys[k] + dy;
+          sum += x < 0 || y < 0 || x >= GRID || y >= GRID ? OUTSIDE : map[y * GRID + x] / 3;
+        }
+        return sum / xs.length + (Math.abs(dx) + Math.abs(dy)) * 0.02;
+      };
+      let best = [0, 0], bestCost = cost(0, 0);
+      for (let dy = -maxShift; dy <= maxShift; dy += step) {
+        for (let dx = -maxShift; dx <= maxShift; dx += step) {
+          const c = cost(dx, dy);
+          if (c < bestCost) {
+            bestCost = c;
+            best = [dx, dy];
+          }
+        }
+      }
+      return best;
+    });
+  }
+
+  // Score 0–1 for how well `strokes` match character `ch`. With maxShift > 0,
+  // each stroke may first be nudged up to that many grid px (of 64) toward
+  // where it fits best, which forgives slightly misplaced strokes.
+  async function match(strokes, ch, maxShift = 0) {
     if (!strokes || !strokes.length) return 0;
     await ensureFont(ch);
     const ref = refGrid(ch);
     if (!ref.ink) return 0; // glyph couldn't be rendered (no Japanese font)
-    const user = userGrid(strokes);
+    let user;
+    if (maxShift > 0) {
+      const gridStrokes = fitStrokes(strokes, GRID);
+      const offsets = bestOffsets(gridStrokes, refMap(ch), maxShift);
+      user = rasterize((g) => traceStrokes(g, gridStrokes, LINE, "#000", offsets));
+    } else {
+      user = userGrid(strokes);
+    }
     if (!user.ink) return 0;
-    const userToRef = meanDistance(user.bin, distanceMap(ref.bin));
+    const userToRef = meanDistance(user.bin, refMap(ch));
     const refToUser = meanDistance(ref.bin, distanceMap(user.bin));
     let score = Math.min(1, Math.max(0, 1 - Math.max(userToRef, refToUser) / MAX_DIST));
     const inkRatio = user.ink / ref.ink;

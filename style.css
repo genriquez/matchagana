@@ -334,11 +334,10 @@ legend { font-weight: 600; padding: 0 6px; }
 .draw { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-bottom: 12px; }
 .draw-strip { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; min-height: 44px; }
 .draw-strip .draw-thumb { border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
-.draw-canvas {
+.draw-area { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
+.draw-canvas, .draw-answer {
   width: min(320px, 80vw);
   aspect-ratio: 1;
-  touch-action: none;
-  cursor: crosshair;
   color: var(--text);
   border: 2px solid var(--border);
   border-radius: 14px;
@@ -349,7 +348,22 @@ legend { font-weight: 600; padding: 0 6px; }
     var(--surface);
   box-shadow: var(--shadow);
 }
+.draw-canvas { touch-action: none; cursor: crosshair; }
 .draw-canvas[data-disabled] { cursor: default; }
+.draw-answer {
+  container-type: inline-size;
+  display: grid;
+  place-items: center;
+}
+.draw-answer span {
+  font-family: var(--jp);
+  font-weight: 400;
+  line-height: 1;
+  white-space: nowrap;
+  font-size: min(75cqw, calc(90cqw / var(--chars, 1)));
+}
+.draw-answer.pass { border-color: var(--matched-border); }
+.draw-answer.fail { border-color: var(--accent); }
 .draw-buttons { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; width: min(420px, 100%); }
 .draw-buttons button { flex: 1 1 auto; min-height: 44px; }
 

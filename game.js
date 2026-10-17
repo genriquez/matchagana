@@ -244,10 +244,10 @@
   ];
 
   const LEVELS = [
-    { id: "easy", label: "Easy", options: 4, choiceTime: 0, typeTime: 0, revealTime: 5, share: 0, drawPass: 0.5, drawStrict: false },
-    { id: "medium", label: "Medium", options: 6, choiceTime: 12, typeTime: 30, revealTime: 6, share: 0.5, drawPass: 0.58, drawStrict: false },
-    { id: "hard", label: "Hard", options: 9, choiceTime: 7, typeTime: 18, revealTime: 3.5, share: 0.8, drawPass: 0.65, drawStrict: true },
-    { id: "expert", label: "Expert", options: 12, choiceTime: 4, typeTime: 10, revealTime: 2, share: 1, drawPass: 0.72, drawStrict: true },
+    { id: "easy", label: "Easy", options: 4, choiceTime: 0, typeTime: 0, revealTime: 5, share: 0, drawPass: 0.5, drawStrict: false, drawShift: 6 },
+    { id: "medium", label: "Medium", options: 6, choiceTime: 12, typeTime: 30, revealTime: 6, share: 0.5, drawPass: 0.58, drawStrict: false, drawShift: 3 },
+    { id: "hard", label: "Hard", options: 9, choiceTime: 7, typeTime: 18, revealTime: 3.5, share: 0.8, drawPass: 0.65, drawStrict: true, drawShift: 0 },
+    { id: "expert", label: "Expert", options: 12, choiceTime: 4, typeTime: 10, revealTime: 2, share: 1, drawPass: 0.72, drawStrict: true, drawShift: 0 },
   ];
 
   const INPUTS = [
@@ -792,6 +792,7 @@
     state.checking = false;
     pad.clear();
     pad.setDisabled(false);
+    $("draw-answer").hidden = true;
     drawButtons().forEach((b) => (b.disabled = false));
     renderStrip();
     // The canvas was hidden until now, so size it after layout.
@@ -840,12 +841,12 @@
   }
 
   async function scoreChar(strokes, ch, level) {
-    const score = await Draw.match(strokes, ch);
+    const score = await Draw.match(strokes, ch, level.drawShift);
     let pass = score >= level.drawPass;
     let beatenBy = null;
     if (pass && level.drawStrict) {
       for (const alt of lookalikesOf(ch)) {
-        if ((await Draw.match(strokes, alt)) > score) {
+        if ((await Draw.match(strokes, alt, level.drawShift)) > score) {
           pass = false;
           beatenBy = alt;
           break;
@@ -890,6 +891,7 @@
   function endDrawing(drawn) {
     pad.setDisabled(true);
     drawButtons().forEach((b) => (b.disabled = true));
+    showDrawAnswer(drawn);
     const review = $("feedback-draw");
     if (!drawn) {
       review.hidden = true;
@@ -910,6 +912,17 @@
     }
     review.replaceChildren(...tiles);
     review.hidden = false;
+  }
+
+  // The correct answer in a box the size of the pad, beside it. Shows the
+  // accepted answer the drawing was judged against (はな → 花 or 鼻).
+  function showDrawAnswer(drawn) {
+    const text = drawn ? drawn.target : state.mode.answer(state.questions[state.index]).text;
+    const box = $("draw-answer");
+    box.className = `draw-answer ${drawn && drawn.pass ? "pass" : "fail"}`;
+    box.style.setProperty("--chars", [...text].length);
+    box.firstElementChild.textContent = text;
+    box.hidden = false;
   }
 
   $("draw-undo").addEventListener("click", undoDraw);

@@ -77,7 +77,10 @@
 
       <div id="draw" class="draw" hidden>
         <div id="draw-strip" class="draw-strip" aria-label="Characters written so far"></div>
-        <canvas id="draw-canvas" class="draw-canvas" aria-label="Drawing area"></canvas>
+        <div class="draw-area">
+          <canvas id="draw-canvas" class="draw-canvas" aria-label="Drawing area"></canvas>
+          <div id="draw-answer" class="draw-answer" aria-live="polite" hidden><span lang="ja"></span></div>
+        </div>
         <div class="draw-buttons">
           <button type="button" id="draw-undo" title="Undo last stroke (Backspace)">Undo</button>
           <button type="button" id="draw-clear" title="Clear the canvas; if empty, remove the last character">Clear</button>
