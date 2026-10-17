@@ -7,6 +7,7 @@ Matchagana is a small static webpage for practicing Japanese. Rounds of 20 quest
 - **Kana:** hiragana and katakana ↔ romaji, and hiragana ↔ katakana, by picking the right answer from a set of options.
 - **Words:** hiragana words ↔ romaji or English.
 - **Kanji:** kanji ↔ English or reading, either by picking from options or by typing the reading with an on-screen kana keyboard or in romaji.
+- **Writing:** draw the answer yourself on a small canvas: romaji → hiragana or katakana, and English or reading → kanji. Only the finished shape is checked, so stroke order doesn't matter.
 
 Harder levels give you more options, less time, and wrong options that look or sound more like the right answer (シ/ツ, ぬ/め, 大/犬…). An optional challenge mode hides the options until you've thought of the answer. After each round you get your score and a list of the questions you missed, and your best scores are saved in your browser.
 
@@ -19,4 +20,5 @@ There's nothing to install or build. Open `index.html` in a browser, or put the 
 - `index.html`: page layout
 - `style.css`: styles, including light and dark themes
 - `data.js`: kana, vocabulary and lookalike tables (add words here)
+- `draw.js`: drawing pad and handwriting matching
 - `game.js`: quiz logic

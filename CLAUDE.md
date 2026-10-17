@@ -9,11 +9,12 @@ A static webpage for learning Japanese: quizzes that match kana, words and kanji
 - **History:** this started as a flip-card memory game. The user dropped it in favor of the current quiz. No flip-card code remains.
 
 ## Files
-- `index.html`: three screens toggled with `hidden`: `#menu`, `#quiz`, `#results`. Loads `data.js`, then `game.js`, as classic scripts (not ES modules, so `file://` keeps working).
+- `index.html`: three screens toggled with `hidden`: `#menu`, `#quiz`, `#results`. Loads `data.js`, `draw.js`, then `game.js`, as classic scripts (not ES modules, so `file://` keeps working).
 - `data.js`: all content, as globals.
   - `KANA_GROUPS` + `KANA_ROWS` + `YOON_BASES` build `KANA`: `{ hira, kata, romaji, group }`. Covers the basic rows, the voiced rows (が/ざ/だ/ば/ぱ) and the combined sounds (きゃ etc., group `yoon`).
   - `WORD_THEMES` + `WORDS`: `{ kana, romaji, english, kanji|null, theme }`. About 108 words in 12 themes. Kanji modes only use words that have `kanji`.
   - `KANA_LOOKALIKES`, `KANJI_LOOKALIKES`: strings of characters that are easy to confuse, used to pick tricky wrong options.
+- `draw.js`: handwriting support, exposed as the global `Draw`: `createPad(canvas)` (records strokes with pointer events), `match(strokes, ch)` (0–1 shape score) and `thumbnail(strokes, ch?, size)`. No recognizer and no library: the drawing and the expected character, drawn in the page font, are both scaled to fit a 64×64 grid and compared with a two-way chamfer distance (how far each inked pixel is from the other image's nearest ink). Drawings with far more ink than the character (scribbles) are penalized. Tuning constants (`MAX_DIST`, `LINE`, `MAX_INK_RATIO`) are at the top of the file.
 - `game.js`: the whole app, in one IIFE (immediately invoked function). Sections, in order:
   1. Helpers: `$`, `el`, `shuffle`, `store` (localStorage under the `matchagana:` prefix, wrapped in try/catch), `levenshtein`.
   2. Kana modifier tables (`DAK`, `HAN`, `SMALL`) and `applyModifier`, used by the on-screen keyboard.
@@ -37,7 +38,10 @@ A static webpage for learning Japanese: quizzes that match kana, words and kanji
 - **Hide options** (`settings.hideOptions`, multiple-choice modes only): options stay hidden until the player clicks Show or presses Space or Enter. There is no timer before that; afterwards the timer is the level's shorter `revealTime` (5/6/3.5/2 s, so even Easy gets a time limit). Answer time is still measured from when the question appeared.
 - **Best scores** are saved per mode + level (+ input method for typing modes) under keys like `best:<mode>:<level>[:<input>]`. Hidden-options rounds add `:hidden` to the key.
 
+- **Writing modes** (`type: "draw"`; romaji → write hiragana or katakana, English or reading → write kanji): one canvas, with Next character (Space) to save a character and Check (Enter) to judge. The answer length isn't revealed. Every character must reach the level's `drawPass` score (0.50/0.58/0.65/0.72); on Hard and Expert (`drawStrict`) it must also score higher against the correct character than against its lookalikes and its voiced/unvoiced twins (`lookalikesOf`). The timer is `typeTime` × answer length. Feedback shows each drawing over the faint correct character with its match percentage. **The thresholds are untested guesses and will likely need tuning.** Matching needs a Japanese font (Noto Sans JP from Google Fonts, or a system one); offline without one, the expected characters can't be drawn and every answer fails.
+
 ## User preferences (from past sessions)
+- Handwriting only checks the drawing against the known answer (no recognition), and stroke order doesn't matter; only the finished shape is judged. For multi-character answers, use one canvas with "Next character" rather than one box per character, so the length isn't given away.
 - Text on the prompt and options should be **very large**. The user asked for "way bigger" once already.
 - Romaji answers use a plain text field. **No automatic romaji-to-kana conversion** for now: the user said "no need to autoconvert for now".
 - The menu is free choice: no unlocking or forced progression.

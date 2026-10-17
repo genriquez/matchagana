@@ -75,10 +75,22 @@
       </form>
       <div id="keyboard" class="keyboard" hidden></div>
 
+      <div id="draw" class="draw" hidden>
+        <div id="draw-strip" class="draw-strip" aria-label="Characters written so far"></div>
+        <canvas id="draw-canvas" class="draw-canvas" aria-label="Drawing area"></canvas>
+        <div class="draw-buttons">
+          <button type="button" id="draw-undo" title="Undo last stroke (Backspace)">Undo</button>
+          <button type="button" id="draw-clear" title="Clear the canvas; if empty, remove the last character">Clear</button>
+          <button type="button" id="draw-next" title="Save this character and draw the next one (Space)">Next character</button>
+          <button type="button" id="draw-check" class="primary" title="Check (Enter)">Check ⏎</button>
+        </div>
+      </div>
+
       <div id="feedback" class="feedback" hidden>
         <p id="feedback-text" class="feedback-text"></p>
         <p id="feedback-yours" class="feedback-yours" lang="ja" hidden></p>
         <p id="feedback-info" class="feedback-info" lang="ja"></p>
+        <div id="feedback-draw" class="feedback-draw" hidden></div>
         <button type="button" id="next" class="primary">Next ⏎</button>
       </div>
     </section>
@@ -99,6 +111,7 @@
   </main>
 
   <script src="data.js"></script>
+  <script src="draw.js"></script>
   <script src="game.js"></script>
 </body>
 </html>

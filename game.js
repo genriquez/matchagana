@@ -212,6 +212,7 @@
     { id: "words", label: "Words · multiple choice" },
     { id: "kanji", label: "Kanji · multiple choice" },
     { id: "typing", label: "Kanji · type the reading" },
+    { id: "writing", label: "Writing · draw the answer" },
   ];
 
   const kanaMode = (id, label, sample, prompt, answer, scripts) =>
@@ -235,13 +236,18 @@
 
     { id: "type-kanji", group: "typing", label: "Kanji → type reading", sample: "猫 → ねこ / neko", source: "kanji", type: "typing", prompt: F.kanji },
     { id: "type-english", group: "typing", label: "English → type reading", sample: "cat → ねこ / neko", source: "kanji", type: "typing", prompt: F.english },
+
+    { id: "write-hira", group: "writing", label: "Romaji → write hiragana", sample: "a → ✍ あ", source: "kana", type: "draw", prompt: F.romaji, answer: F.hira },
+    { id: "write-kata", group: "writing", label: "Romaji → write katakana", sample: "a → ✍ ア", source: "kana", type: "draw", prompt: F.romaji, answer: F.kata },
+    { id: "write-kanji-english", group: "writing", label: "English → write kanji", sample: "cat → ✍ 猫", source: "kanji", type: "draw", prompt: F.english, answer: F.kanji },
+    { id: "write-kanji-reading", group: "writing", label: "Reading → write kanji", sample: "ねこ → ✍ 猫", source: "kanji", type: "draw", prompt: F.word, answer: F.kanji },
   ];
 
   const LEVELS = [
-    { id: "easy", label: "Easy", options: 4, choiceTime: 0, typeTime: 0, revealTime: 5, share: 0 },
-    { id: "medium", label: "Medium", options: 6, choiceTime: 12, typeTime: 30, revealTime: 6, share: 0.5 },
-    { id: "hard", label: "Hard", options: 9, choiceTime: 7, typeTime: 18, revealTime: 3.5, share: 0.8 },
-    { id: "expert", label: "Expert", options: 12, choiceTime: 4, typeTime: 10, revealTime: 2, share: 1 },
+    { id: "easy", label: "Easy", options: 4, choiceTime: 0, typeTime: 0, revealTime: 5, share: 0, drawPass: 0.5, drawStrict: false },
+    { id: "medium", label: "Medium", options: 6, choiceTime: 12, typeTime: 30, revealTime: 6, share: 0.5, drawPass: 0.58, drawStrict: false },
+    { id: "hard", label: "Hard", options: 9, choiceTime: 7, typeTime: 18, revealTime: 3.5, share: 0.8, drawPass: 0.65, drawStrict: true },
+    { id: "expert", label: "Expert", options: 12, choiceTime: 4, typeTime: 10, revealTime: 2, share: 1, drawPass: 0.72, drawStrict: true },
   ];
 
   const INPUTS = [
@@ -260,6 +266,7 @@
 
   const QUESTIONS_PER_ROUND = 20;
   const CORRECT_DELAY = 700;
+  const CORRECT_DELAY_DRAW = 1600; // longer, so the drawing review can be seen
 
   // ---- Settings ---------------------------------------------------------------
 
@@ -281,7 +288,7 @@
 
   // Typing modes answer with the kana reading or its romaji.
   function answerFace(mode, e) {
-    if (mode.type === "choice") return mode.answer(e);
+    if (mode.type !== "typing") return mode.answer(e);
     return settings.input === "kana" ? F.word(e) : F.romaji(e);
   }
 
@@ -411,7 +418,7 @@
   const state = {
     token: 0, mode: null, level: null, pool: [], questions: [], index: 0,
     score: 0, streak: 0, bestStreak: 0, missed: [], times: [],
-    answered: false, revealed: true, startedAt: 0, deadline: 0, raf: 0, options: [],
+    answered: false, revealed: true, drawn: [], checking: false, startedAt: 0, deadline: 0, raf: 0, options: [],
   };
 
   const showScreen = (id) => {
@@ -501,12 +508,17 @@
     $("prompt").replaceChildren(el("span", { className: "tag", textContent: p.kind }), faceNode(p));
 
     const typing = mode.type === "typing";
-    $("choices").hidden = typing || !state.revealed;
+    const drawing = mode.type === "draw";
+    $("choices").hidden = mode.type !== "choice" || !state.revealed;
     $("reveal").hidden = state.revealed;
     $("type-form").hidden = !typing;
     $("keyboard").hidden = !(typing && settings.input === "kana");
+    $("draw").hidden = !drawing;
+    $("feedback-draw").hidden = true;
 
-    if (typing) {
+    if (drawing) {
+      startDrawing(item);
+    } else if (typing) {
       const input = $("type-input");
       const kana = settings.input === "kana";
       input.value = "";
@@ -538,6 +550,8 @@
     if (!state.revealed) {
       startTimer(0);
       $("reveal").focus();
+    } else if (drawing) {
+      startTimer(level.typeTime * [...mode.answer(item).text].length);
     } else startTimer(typing ? level.typeTime : level.choiceTime);
   }
 
@@ -594,7 +608,7 @@
 
   // Explain the wrong answer in terms of the other scripts, e.g. "ツ (tsu)",
   // "犬 (いぬ · inu · dog)", or a typed "ねく (neku)".
-  function describeAnswer(choice, typed) {
+  function describeAnswer(choice, typed, drawn) {
     const { mode } = state;
     if (mode.type === "choice") {
       if (choice == null) return "";
@@ -611,6 +625,18 @@
         default: return `${f.text} (${e.kanji ? e.kanji + " · " : ""}${reading})`;
       }
     }
+    if (mode.type === "draw") {
+      if (!drawn) return "";
+      const n = state.drawn.length;
+      if (n !== drawn.chars.length) {
+        return `${n} character${n === 1 ? "" : "s"} drawn, but ${drawn.target} has ${drawn.chars.length}`;
+      }
+      const bad = drawn.chars
+        .map((ch, i) => ({ ch, ...drawn.scores[i] }))
+        .filter((s) => !s.pass)
+        .map((s) => `${s.ch} ${pct(s.score)}${s.beatenBy ? ` (looked more like ${s.beatenBy})` : ""}`);
+      return `didn't match: ${bad.join(", ")}`;
+    }
     if (typed == null) return "";
     const t = typed.trim();
     if (settings.input === "kana") {
@@ -621,7 +647,7 @@
     return word ? `${t} (${word.kana} = ${word.kanji ? word.kanji + " · " : ""}${word.english})` : t;
   }
 
-  function answer({ choice = null, typed = null, timeout = false }) {
+  function answer({ choice = null, typed = null, drawn = null, timeout = false }) {
     if (state.answered) return;
     state.answered = true;
     cancelAnimationFrame(state.raf);
@@ -639,6 +665,9 @@
         if (isAnswer) btn.classList.add("correct");
         else if (i === choice) btn.classList.add("wrong");
       });
+    } else if (mode.type === "draw") {
+      correct = !!drawn && drawn.pass;
+      endDrawing(drawn);
     } else {
       if (typed != null) {
         const { accepted, norm } = acceptedAnswers(item);
@@ -651,7 +680,7 @@
       $("keyboard").querySelectorAll("button").forEach((b) => (b.disabled = true));
     }
 
-    const yours = correct ? "" : describeAnswer(choice, typed);
+    const yours = correct ? "" : describeAnswer(choice, typed, drawn);
     state.times.push(performance.now() - state.startedAt);
     if (correct) {
       state.score++;
@@ -677,7 +706,8 @@
 
     if (correct) {
       const token = state.token;
-      setTimeout(() => token === state.token && next(), CORRECT_DELAY);
+      const delay = mode.type === "draw" ? CORRECT_DELAY_DRAW : CORRECT_DELAY;
+      setTimeout(() => token === state.token && next(), delay);
     } else {
       $("next").focus();
     }
@@ -706,6 +736,19 @@
 
   document.addEventListener("keydown", (ev) => {
     if ($("quiz").hidden || ev.ctrlKey || ev.metaKey || ev.altKey) return;
+    if (state.mode.type === "draw" && !state.answered) {
+      if (ev.key === "Enter") {
+        ev.preventDefault();
+        checkDrawing();
+      } else if (ev.key === " ") {
+        ev.preventDefault();
+        saveCurrentChar();
+      } else if (ev.key === "Backspace") {
+        ev.preventDefault();
+        undoDraw();
+      }
+      return;
+    }
     const inField = ev.target === $("type-input") && !$("type-input").readOnly;
     if (ev.key === "Enter") {
       if (ev.target.tagName === "BUTTON" || inField) return; // native activation / form submit
@@ -737,6 +780,142 @@
     state.token++;
     showScreen("menu");
   });
+
+  // ---- Drawing (writing modes) --------------------------------------------------
+
+  const pad = Draw.createPad($("draw-canvas"));
+  const pct = (score) => `${Math.round(score * 100)}%`;
+  const drawButtons = () => $("draw").querySelectorAll("button");
+
+  function startDrawing(item) {
+    state.drawn = [];
+    state.checking = false;
+    pad.clear();
+    pad.setDisabled(false);
+    drawButtons().forEach((b) => (b.disabled = false));
+    renderStrip();
+    // The canvas was hidden until now, so size it after layout.
+    requestAnimationFrame(() => pad.resize());
+    Draw.ensureFont(state.mode.answer(item).text);
+  }
+
+  function renderStrip() {
+    $("draw-strip").replaceChildren(...state.drawn.map((strokes) => Draw.thumbnail(strokes, null, 44)));
+  }
+
+  function saveCurrentChar() {
+    if (state.answered || pad.isEmpty()) return;
+    state.drawn.push(pad.strokes);
+    pad.clear();
+    renderStrip();
+  }
+
+  // Undo a stroke; on an empty canvas, take back the last saved character.
+  function undoDraw() {
+    if (!pad.isEmpty()) pad.undo();
+    else if (state.drawn.length) {
+      state.drawn.pop();
+      renderStrip();
+    }
+  }
+
+  function clearDraw() {
+    if (!pad.isEmpty()) pad.clear();
+    else if (state.drawn.length) {
+      state.drawn.pop();
+      renderStrip();
+    }
+  }
+
+  // Characters that could be confused with ch: listed lookalikes plus its
+  // voiced/unvoiced twins (か/が/…).
+  function lookalikesOf(ch) {
+    const out = new Set();
+    for (const g of [...KANA_LOOKALIKES, ...KANJI_LOOKALIKES]) {
+      if (g.includes(ch)) for (const c of g) out.add(c);
+    }
+    for (const m of [DAK.fwd, DAK.rev, HAN.fwd, HAN.rev]) if (m.has(ch)) out.add(m.get(ch));
+    out.delete(ch);
+    return [...out];
+  }
+
+  async function scoreChar(strokes, ch, level) {
+    const score = await Draw.match(strokes, ch);
+    let pass = score >= level.drawPass;
+    let beatenBy = null;
+    if (pass && level.drawStrict) {
+      for (const alt of lookalikesOf(ch)) {
+        if ((await Draw.match(strokes, alt)) > score) {
+          pass = false;
+          beatenBy = alt;
+          break;
+        }
+      }
+    }
+    return { score, pass, beatenBy };
+  }
+
+  // Judge the drawing against every accepted answer (items sharing the prompt,
+  // e.g. はな → 花 or 鼻) and keep the best result.
+  async function checkDrawing() {
+    if (state.answered || state.checking) return;
+    saveCurrentChar();
+    if (!state.drawn.length) return;
+    state.checking = true;
+    const token = state.token;
+    const { mode, level } = state;
+    const item = state.questions[state.index];
+    const promptText = mode.prompt(item).text;
+    const targets = [...new Set(state.pool.filter((e) => mode.prompt(e).text === promptText).map((e) => mode.answer(e).text))];
+
+    let best = null;
+    for (const target of targets) {
+      const chars = [...target];
+      const scores = [];
+      for (let i = 0; i < chars.length; i++) {
+        scores.push(state.drawn[i] ? await scoreChar(state.drawn[i], chars[i], level) : { score: 0, pass: false });
+      }
+      const pass = chars.length === state.drawn.length && scores.every((s) => s.pass);
+      const total = scores.reduce((a, s) => a + s.score, 0) - Math.abs(chars.length - state.drawn.length);
+      if (!best || (pass && !best.pass) || (pass === best.pass && total > best.total)) {
+        best = { target, chars, scores, pass, total };
+      }
+    }
+    state.checking = false;
+    if (token !== state.token || state.answered) return;
+    answer({ drawn: best });
+  }
+
+  // Lock the pad and show each drawn character over the expected one.
+  function endDrawing(drawn) {
+    pad.setDisabled(true);
+    drawButtons().forEach((b) => (b.disabled = true));
+    const review = $("feedback-draw");
+    if (!drawn) {
+      review.hidden = true;
+      return;
+    }
+    const count = Math.max(drawn.chars.length, state.drawn.length);
+    const tiles = [];
+    for (let i = 0; i < count; i++) {
+      const ch = drawn.chars[i];
+      const strokes = state.drawn[i];
+      const s = drawn.scores[i];
+      tiles.push(
+        el("figure", { className: `draw-tile ${s && s.pass ? "pass" : "fail"}` }, [
+          strokes ? Draw.thumbnail(strokes, ch, 72) : el("span", { className: "draw-missing", textContent: "—" }),
+          el("figcaption", { lang: "ja", textContent: ch ? `${ch} ${s ? pct(s.score) : ""}` : "extra" }),
+        ])
+      );
+    }
+    review.replaceChildren(...tiles);
+    review.hidden = false;
+  }
+
+  $("draw-undo").addEventListener("click", undoDraw);
+  $("draw-clear").addEventListener("click", clearDraw);
+  $("draw-next").addEventListener("click", saveCurrentChar);
+  $("draw-check").addEventListener("click", checkDrawing);
 
   // ---- Kana keyboard ----------------------------------------------------------
 

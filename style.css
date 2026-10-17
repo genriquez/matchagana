@@ -328,3 +328,34 @@ legend { font-weight: 600; padding: 0 6px; }
 .hide-note { margin: 8px 0 0; font-size: 0.9em; }
 .reveal { display: block; width: 100%; padding: 18px; font-size: 1.3rem; }
 .muted-key { opacity: 0.75; font-weight: 400; font-size: 0.85em; }
+
+/* ---- Drawing (writing modes) ---- */
+
+.draw { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-bottom: 12px; }
+.draw-strip { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; min-height: 44px; }
+.draw-strip .draw-thumb { border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
+.draw-canvas {
+  width: min(320px, 80vw);
+  aspect-ratio: 1;
+  touch-action: none;
+  cursor: crosshair;
+  color: var(--text);
+  border: 2px solid var(--border);
+  border-radius: 14px;
+  /* Guide lines like Japanese writing paper; CSS only, so they never count as ink. */
+  background:
+    linear-gradient(to right, transparent calc(50% - 1px), var(--border) calc(50% - 1px), var(--border) calc(50% + 1px), transparent calc(50% + 1px)),
+    linear-gradient(to bottom, transparent calc(50% - 1px), var(--border) calc(50% - 1px), var(--border) calc(50% + 1px), transparent calc(50% + 1px)),
+    var(--surface);
+  box-shadow: var(--shadow);
+}
+.draw-canvas[data-disabled] { cursor: default; }
+.draw-buttons { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; width: min(420px, 100%); }
+.draw-buttons button { flex: 1 1 auto; min-height: 44px; }
+
+.feedback-draw { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 10px; }
+.draw-tile { margin: 0; padding: 6px; border-radius: 10px; border: 2px solid var(--border); background: var(--surface); text-align: center; }
+.draw-tile.pass { border-color: var(--matched-border); }
+.draw-tile.fail { border-color: var(--accent); }
+.draw-tile figcaption { font-size: 0.95rem; font-weight: 600; }
+.draw-missing { display: grid; place-items: center; width: 72px; height: 72px; color: var(--muted); }
