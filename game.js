@@ -276,6 +276,8 @@
       level: "easy",
       input: "kana",
       hideOptions: false,
+      noTimer: false,
+      holdCorrect: false,
       filters: { kana: ["a", "ka", "sa"], words: ["animals", "food", "colors"], kanji: ["numbers", "nature", "body"] },
     },
     store.get("settings", {})
@@ -338,6 +340,8 @@
       ...INPUTS.map((i) => radio("input", i.id, i.id === settings.input, el("span", { textContent: i.label })))
     );
     $("hide-options").checked = settings.hideOptions;
+    $("no-timer").checked = settings.noTimer;
+    $("hold-correct").checked = settings.holdCorrect;
 
     renderFilters();
   }
@@ -376,8 +380,11 @@
     else if (mode.type === "choice" && n < level.options) msg = `${items.length} items — only ${n} options per question with this selection.`;
     else msg = `${items.length} items available.`;
     $("available").textContent = msg;
-    $("hide-field").hidden = mode.type !== "choice";
-    $("hide-note").textContent = `Think of the answer first, then reveal. You get ${level.revealTime}s to pick once the options appear.`;
+    $("hide-label").hidden = mode.type !== "choice";
+    $("hide-label").title = settings.noTimer
+      ? "Think of the answer first, then reveal the options."
+      : `Think of the answer first, then reveal. You get ${level.revealTime}s to pick once the options appear.`;
+    $("hold-label").hidden = mode.type !== "draw";
   }
 
   $("mode-list").addEventListener("change", (ev) => {
@@ -389,6 +396,15 @@
     settings.level = ev.target.value;
     saveSettings();
     updateAvailable();
+  });
+  $("no-timer").addEventListener("change", (ev) => {
+    settings.noTimer = ev.target.checked;
+    saveSettings();
+    updateAvailable();
+  });
+  $("hold-correct").addEventListener("change", (ev) => {
+    settings.holdCorrect = ev.target.checked;
+    saveSettings();
   });
   $("hide-options").addEventListener("change", (ev) => {
     settings.hideOptions = ev.target.checked;
@@ -439,7 +455,7 @@
     state.questions.length = QUESTIONS_PER_ROUND;
     Object.assign(state, { index: 0, score: 0, streak: 0, bestStreak: 0, missed: [], times: [] });
 
-    $("q-mode").textContent = `${state.mode.label} · ${state.level.label}${hidingOptions() ? " · options hidden" : ""}`;
+    $("q-mode").textContent = `${state.mode.label} · ${state.level.label}${hidingOptions() ? " · options hidden" : ""}${settings.noTimer ? " · no time limit" : ""}`;
     showScreen("quiz");
     renderQuestion();
   }
@@ -568,6 +584,7 @@
   // ---- Timer ------------------------------------------------------------------
 
   function startTimer(secs) {
+    if (settings.noTimer) secs = 0;
     cancelAnimationFrame(state.raf);
     const bar = $("timer");
     bar.hidden = !secs;
@@ -702,9 +719,11 @@
     $("feedback-info").textContent = SOURCES[mode.source].info(item);
     $("feedback-yours").hidden = correct || !yours;
     $("feedback-yours").textContent = yours ? `You answered: ${yours}` : "";
-    $("next").hidden = correct;
+    // Optionally stay on correct drawings so the answer can be compared at leisure.
+    const hold = correct && mode.type === "draw" && settings.holdCorrect;
+    $("next").hidden = correct && !hold;
 
-    if (correct) {
+    if (correct && !hold) {
       const token = state.token;
       const delay = mode.type === "draw" ? CORRECT_DELAY_DRAW : CORRECT_DELAY;
       setTimeout(() => token === state.token && next(), delay);
@@ -1002,7 +1021,7 @@
     const avg = state.times.reduce((a, b) => a + b, 0) / state.times.length;
     const pct = Math.round((state.score / QUESTIONS_PER_ROUND) * 100);
 
-    const key = `best:${mode.id}:${level.id}${mode.type === "typing" ? ":" + settings.input : ""}${hidingOptions() ? ":hidden" : ""}`;
+    const key = `best:${mode.id}:${level.id}${mode.type === "typing" ? ":" + settings.input : ""}${hidingOptions() ? ":hidden" : ""}${settings.noTimer ? ":untimed" : ""}`;
     const best = store.get(key, null);
     const isBest = !best || state.score > best.score || (state.score === best.score && avg < best.avg);
     if (isBest) store.set(key, { score: state.score, avg });

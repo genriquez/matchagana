@@ -41,10 +41,13 @@
         <div id="input-list" class="chip-list"></div>
       </fieldset>
 
-      <fieldset id="hide-field" hidden>
-        <legend>Challenge</legend>
-        <label class="chip"><input type="checkbox" id="hide-options"> <span>Hide options until I click Show</span></label>
-        <p id="hide-note" class="muted hide-note"></p>
+      <fieldset>
+        <legend>Options</legend>
+        <div class="chip-list">
+          <label class="chip"><input type="checkbox" id="no-timer"> <span>No time limit (any level)</span></label>
+          <label class="chip" id="hide-label" hidden><input type="checkbox" id="hide-options"> <span>Hide options until I click Show</span></label>
+          <label class="chip" id="hold-label" hidden><input type="checkbox" id="hold-correct"> <span>Drawing: stay on correct answers until I press Next</span></label>
+        </div>
       </fieldset>
 
       <div class="start-row">
