@@ -3,7 +3,7 @@ grab("js/data.js").grab("js/dom-utilities.js").grab("js/utilities.js").grab("js/
   const { KANA, KANA_GROUPS, WORDS, WORD_THEMES, KANA_LOOKALIKES, KANJI_LOOKALIKES } = ctx.data;
   const { $, el } = ctx.dom;
   const { shuffle, levenshtein, groupLookup, fmtSecs, pct } = ctx.utils;
-  const { baseKana, kanaToRomaji, normalizeRomaji, normalizeKana, lookalikesOf } = ctx.kana;
+  const { baseKana, kanaToRomaji, toKatakana, normalizeRomaji, normalizeKana, lookalikesOf } = ctx.kana;
   const { draw: Draw, keyboard: Keyboard } = ctx;
 
   const store = ctx.storage.createStore("matchagana:");
@@ -79,61 +79,83 @@ grab("js/data.js").grab("js/dom-utilities.js").grab("js/utilities.js").grab("js/
 
   // ---- Modes ------------------------------------------------------------------
 
+  // Faces: how an item is written in the prompt or an answer.
   const F = {
     hira: (e) => ({ text: e.hira, kind: "hiragana", jp: true }),
     kata: (e) => ({ text: e.kata, kind: "katakana", jp: true }),
     romaji: (e) => ({ text: e.romaji, kind: "romaji" }),
     word: (e) => ({ text: e.kana, kind: "hiragana", jp: true }),
+    wordKata: (e) => ({ text: toKatakana(e.kana), kind: "katakana", jp: true }),
     kanji: (e) => ({ text: e.kanji, kind: "kanji", jp: true }),
     english: (e) => ({ text: e.english, kind: "english" }),
   };
 
-  const MODE_GROUPS = [
-    { id: "kana", label: "Kana · multiple choice" },
-    { id: "words", label: "Words · multiple choice" },
-    { id: "kanji", label: "Kanji · multiple choice" },
-    { id: "typing", label: "Kanji · type the reading" },
-    { id: "writing", label: "Writing · draw the answer" },
+  // A mode is built from what is shown (PROMPTS) and how it is answered
+  // (ANSWERS). `kind` is the script of the face, used to hide redundant pairs.
+  const PROMPTS = [
+    { id: "kana-romaji", label: "Kana in romaji", source: "kana", kind: "romaji", face: F.romaji },
+    { id: "word-romaji", label: "Words in romaji", source: "words", kind: "romaji", face: F.romaji },
+    { id: "hira", label: "Hiragana", source: "kana", kind: "hiragana", face: F.hira },
+    { id: "kata", label: "Katakana", source: "kana", kind: "katakana", face: F.kata },
+    { id: "word-hira", label: "Words in hiragana", source: "words", kind: "hiragana", face: F.word },
+    { id: "word-kata", label: "Words in katakana", source: "words", kind: "katakana", face: F.wordKata },
+    { id: "kanji", label: "Kanji", source: "kanji", kind: "kanji", face: F.kanji },
+    { id: "english", label: "English", source: "words", kind: "english", face: F.english },
   ];
 
-  const kanaMode = (id, label, sample, prompt, answer, scripts) =>
-    ({ id, group: "kana", label, sample, source: "kana", type: "choice", prompt, answer, scripts });
-
-  const MODES = [
-    kanaMode("hira-romaji", "Hiragana → Romaji", "あ → a", F.hira, F.romaji, ["hira"]),
-    kanaMode("romaji-hira", "Romaji → Hiragana", "a → あ", F.romaji, F.hira, ["hira"]),
-    kanaMode("kata-romaji", "Katakana → Romaji", "ア → a", F.kata, F.romaji, ["kata"]),
-    kanaMode("romaji-kata", "Romaji → Katakana", "a → ア", F.romaji, F.kata, ["kata"]),
-    kanaMode("hira-kata", "Hiragana → Katakana", "あ → ア", F.hira, F.kata, ["hira", "kata"]),
-    kanaMode("kata-hira", "Katakana → Hiragana", "ア → あ", F.kata, F.hira, ["hira", "kata"]),
-
-    { id: "word-romaji", group: "words", label: "Word → Romaji", sample: "ねこ → neko", source: "words", type: "choice", prompt: F.word, answer: F.romaji, focus: "reading" },
-    { id: "word-english", group: "words", label: "Word → English", sample: "ねこ → cat", source: "words", type: "choice", prompt: F.word, answer: F.english, focus: "meaning" },
-    { id: "english-word", group: "words", label: "English → Word", sample: "cat → ねこ", source: "words", type: "choice", prompt: F.english, answer: F.word, focus: "reading" },
-
-    { id: "english-kanji", group: "kanji", label: "English → Kanji", sample: "cat → 猫", source: "kanji", type: "choice", prompt: F.english, answer: F.kanji, focus: "kanji" },
-    { id: "kanji-english", group: "kanji", label: "Kanji → English", sample: "猫 → cat", source: "kanji", type: "choice", prompt: F.kanji, answer: F.english, focus: "meaning" },
-    { id: "kanji-reading", group: "kanji", label: "Kanji → Reading", sample: "猫 → ねこ", source: "kanji", type: "choice", prompt: F.kanji, answer: F.word, focus: "reading" },
-
-    { id: "type-kanji", group: "typing", label: "Kanji → type reading", sample: "猫 → ねこ / neko", source: "kanji", type: "typing", prompt: F.kanji },
-    { id: "type-english", group: "typing", label: "English → type reading", sample: "cat → ねこ / neko", source: "kanji", type: "typing", prompt: F.english },
-
-    { id: "write-hira", group: "writing", label: "Romaji → write hiragana", sample: "a → ✍ あ", source: "kana", type: "draw", prompt: F.romaji, answer: F.hira },
-    { id: "write-kata", group: "writing", label: "Romaji → write katakana", sample: "a → ✍ ア", source: "kana", type: "draw", prompt: F.romaji, answer: F.kata },
-    { id: "write-kanji-english", group: "writing", label: "English → write kanji", sample: "cat → ✍ 猫", source: "kanji", type: "draw", prompt: F.english, answer: F.kanji },
-    { id: "write-kanji-reading", group: "writing", label: "Reading → write kanji", sample: "ねこ → ✍ 猫", source: "kanji", type: "draw", prompt: F.word, answer: F.kanji },
+  // faces: the face for kana items and for word items (null: not available).
+  // mark: shown before the answer in the samples.
+  const ANSWERS = [
+    { id: "type-romaji", label: "Write romaji", type: "typing", input: "romaji", kind: "romaji", mark: "⌨ ", faces: { kana: F.romaji, word: F.romaji } },
+    { id: "pick-romaji", label: "Select romaji", type: "choice", kind: "romaji", mark: "", faces: { kana: F.romaji, word: F.romaji } },
+    { id: "pick-hira", label: "Select hiragana", type: "choice", kind: "hiragana", mark: "", faces: { kana: F.hira, word: F.word } },
+    { id: "pick-kata", label: "Select katakana", type: "choice", kind: "katakana", mark: "", faces: { kana: F.kata, word: F.wordKata } },
+    { id: "keyboard", label: "Hiragana keyboard", type: "typing", input: "kana", kind: "hiragana", mark: "⌨ ", faces: { kana: F.hira, word: F.word } },
+    { id: "pick-kanji", label: "Select kanji", type: "choice", kind: "kanji", mark: "", faces: { kana: null, word: F.kanji } },
+    { id: "pick-english", label: "Select English", type: "choice", kind: "english", mark: "", faces: { kana: null, word: F.english } },
+    { id: "draw-hira", label: "Draw hiragana", type: "draw", kind: "hiragana", mark: "✍ ", faces: { kana: F.hira, word: F.word } },
+    { id: "draw-kata", label: "Draw katakana", type: "draw", kind: "katakana", mark: "✍ ", faces: { kana: F.kata, word: F.wordKata } },
+    { id: "draw-kanji", label: "Draw kanji", type: "draw", kind: "kanji", mark: "✍ ", faces: { kana: null, word: F.kanji } },
   ];
+
+  const findPrompt = (id) => PROMPTS.find((p) => p.id === id);
+  const faceFor = (prompt, a) => a.faces[prompt.source === "kana" ? "kana" : "word"];
+
+  // Answers that fit a prompt: available for its items and not in the same script.
+  const answersFor = (prompt) => ANSWERS.filter((a) => faceFor(prompt, a) && a.kind !== prompt.kind);
+
+  function buildMode(promptId, answerId) {
+    const p = findPrompt(promptId);
+    const a = p && answersFor(p).find((x) => x.id === answerId);
+    if (!a) return null;
+    const kinds = [p.kind, a.kind];
+    const scripts = [["hira", "hiragana"], ["kata", "katakana"]].filter(([, k]) => kinds.includes(k)).map(([s]) => s);
+    return {
+      id: `${p.id}:${a.id}`,
+      label: `${p.label} → ${a.label}`,
+      promptId: p.id,
+      answerId: a.id,
+      source: p.kind === "kanji" || a.kind === "kanji" ? "kanji" : p.source,
+      type: a.type,
+      input: a.input,
+      prompt: p.face,
+      answer: faceFor(p, a),
+      scripts: scripts.length ? scripts : ["hira"],
+      focus: a.kind === "kanji" ? "kanji" : a.kind === "english" ? "meaning" : "reading",
+    };
+  }
+
+  // Samples on the menu cards, e.g. "猫 → neko", "ka → ✍ か".
+  const SAMPLE = { kana: KANA.find((k) => k.hira === "か"), word: WORDS.find((w) => w.kana === "ねこ") };
+  const sampleItem = (prompt) => SAMPLE[prompt.source === "kana" ? "kana" : "word"];
+  const promptSample = (p) => p.face(sampleItem(p)).text;
+  const modeSample = (p, a) => `${promptSample(p)} → ${a.mark}${faceFor(p, a)(sampleItem(p)).text}`;
 
   const LEVELS = [
     { id: "easy", label: "Easy", options: 4, choiceTime: 0, typeTime: 0, revealTime: 5, share: 0, drawPass: 0.5, drawStrict: false, drawShift: 6 },
     { id: "medium", label: "Medium", options: 6, choiceTime: 12, typeTime: 30, revealTime: 6, share: 0.5, drawPass: 0.58, drawStrict: false, drawShift: 3 },
     { id: "hard", label: "Hard", options: 9, choiceTime: 7, typeTime: 18, revealTime: 3.5, share: 0.8, drawPass: 0.65, drawStrict: true, drawShift: 0 },
     { id: "expert", label: "Expert", options: 12, choiceTime: 4, typeTime: 10, revealTime: 2, share: 1, drawPass: 0.72, drawStrict: true, drawShift: 0 },
-  ];
-
-  const INPUTS = [
-    { id: "kana", label: "Kana keyboard" },
-    { id: "romaji", label: "Romaji" },
   ];
 
   const kanaInfo = (e) => `${e.hira} · ${e.kata} · ${e.romaji}`;
@@ -153,9 +175,10 @@ grab("js/data.js").grab("js/dom-utilities.js").grab("js/utilities.js").grab("js/
 
   const settings = Object.assign(
     {
-      mode: "hira-romaji",
+      prompt: "hira",
+      answer: "pick-romaji",
+      recent: [], // last two modes played: [{ prompt, answer }], newest first
       level: "easy",
-      input: "kana",
       hideOptions: false,
       noTimer: false,
       holdCorrect: false,
@@ -163,17 +186,18 @@ grab("js/data.js").grab("js/dom-utilities.js").grab("js/utilities.js").grab("js/
     },
     store.get("settings", {})
   );
+  delete settings.mode; // replaced by prompt + answer
+  delete settings.input; // now part of the answer
+  // Saved choices that no longer exist fall back to the defaults.
+  if (!findPrompt(settings.prompt)) settings.prompt = "hira";
+  if (!buildMode(settings.prompt, settings.answer)) settings.answer = answersFor(findPrompt(settings.prompt))[0].id;
+  settings.recent = settings.recent.filter((r) => buildMode(r.prompt, r.answer));
   const saveSettings = () => store.set("settings", settings);
 
-  const currentMode = () => MODES.find((m) => m.id === settings.mode) || MODES[0];
+  // null while the chosen answer doesn't fit the chosen prompt (menu step 2).
+  const currentMode = () => buildMode(settings.prompt, settings.answer);
   const currentLevel = () => LEVELS.find((l) => l.id === settings.level) || LEVELS[0];
   const hidingOptions = () => currentMode().type === "choice" && settings.hideOptions;
-
-  // Typing modes answer with the kana reading or its romaji.
-  function answerFace(mode, e) {
-    if (mode.type !== "typing") return mode.answer(e);
-    return settings.input === "kana" ? F.word(e) : F.romaji(e);
-  }
 
   function pool(mode) {
     const src = SOURCES[mode.source];
@@ -181,32 +205,73 @@ grab("js/data.js").grab("js/dom-utilities.js").grab("js/utilities.js").grab("js/
     return src.items.filter((e) => selected.has(src.groupOf(e)));
   }
 
-  const distinctAnswers = (mode, items) => new Set(items.map((e) => answerFace(mode, e).text)).size;
+  const distinctAnswers = (mode, items) => new Set(items.map((e) => mode.answer(e).text)).size;
 
   // ---- Menu -------------------------------------------------------------------
+  // A wizard: 1. what is shown, 2. how to answer, 3. content, difficulty and options.
+
+  const STEPS = ["step-prompt", "step-answer", "step-setup"];
 
   function radio(name, value, checked, children, className = "chip") {
     return el("label", { className }, [el("input", { type: "radio", name, value, checked }), ...[].concat(children)]);
   }
 
-  function renderMenu() {
-    $("mode-list").replaceChildren(
-      ...MODE_GROUPS.map((g) =>
-        el("div", { className: "mode-group" }, [
-          el("h3", { textContent: g.label }),
-          el("div", { className: "mode-list" },
-            MODES.filter((m) => m.group === g.id).map((m) =>
-              radio("mode", m.id, m.id === settings.mode,
-                el("span", { className: "mode-body" }, [
-                  el("span", { className: "mode-label", textContent: m.label }),
-                  el("span", { className: "mode-sample", lang: "ja", textContent: m.sample }),
-                ]), "mode")
-            )
-          ),
-        ])
-      )
-    );
+  // A clickable card; picking one moves on to the next step.
+  function card(label, sample, pressed, data) {
+    const btn = el("button", { type: "button", className: "mode" }, [
+      el("span", { className: "mode-body" }, [
+        el("span", { className: "mode-label", textContent: label }),
+        el("span", { className: "mode-sample", lang: "ja", textContent: sample }),
+      ]),
+    ]);
+    btn.setAttribute("aria-pressed", String(pressed));
+    Object.assign(btn.dataset, data);
+    return btn;
+  }
 
+  function modeSummary(mode) {
+    const p = findPrompt(mode.promptId);
+    const a = ANSWERS.find((x) => x.id === mode.answerId);
+    return [
+      el("strong", { textContent: mode.label }),
+      el("span", { className: "mode-sample", lang: "ja", textContent: modeSample(p, a) }),
+    ];
+  }
+
+  function showStep(i) {
+    STEPS.forEach((id, j) => ($(id).hidden = j !== i));
+    $("menu-progress").textContent = `Step ${i + 1} of ${STEPS.length}`;
+    if (i === 0) renderPromptStep();
+    else if (i === 1) renderAnswerStep();
+    else renderSetupStep();
+  }
+
+  function renderPromptStep() {
+    const recent = settings.recent;
+    $("recent-field").hidden = !recent.length;
+    $("recent-list").replaceChildren(
+      ...recent.map((r) => {
+        const p = findPrompt(r.prompt);
+        const a = ANSWERS.find((x) => x.id === r.answer);
+        return card(`${p.label} → ${a.label}`, modeSample(p, a), false, { prompt: r.prompt, answer: r.answer });
+      })
+    );
+    $("prompt-list").replaceChildren(
+      ...PROMPTS.map((p) => card(p.label, promptSample(p), p.id === settings.prompt, { prompt: p.id }))
+    );
+  }
+
+  function renderAnswerStep() {
+    const p = findPrompt(settings.prompt);
+    $("answer-shown").textContent = `Shown: ${p.label} (${promptSample(p)})`;
+    $("answer-list").replaceChildren(
+      ...answersFor(p).map((a) => card(a.label, modeSample(p, a), a.id === settings.answer, { answer: a.id }))
+    );
+    $("step-answer").querySelector(".step-next").disabled = !currentMode();
+  }
+
+  function renderSetupStep() {
+    $("setup-mode").replaceChildren(...modeSummary(currentMode()));
     $("level-list").replaceChildren(
       ...LEVELS.map((l) =>
         radio("level", l.id, l.id === settings.level,
@@ -216,14 +281,9 @@ grab("js/data.js").grab("js/dom-utilities.js").grab("js/utilities.js").grab("js/
           ]), "mode")
       )
     );
-
-    $("input-list").replaceChildren(
-      ...INPUTS.map((i) => radio("input", i.id, i.id === settings.input, el("span", { textContent: i.label })))
-    );
     $("hide-options").checked = settings.hideOptions;
     $("no-timer").checked = settings.noTimer;
     $("hold-correct").checked = settings.holdCorrect;
-
     renderFilters();
   }
 
@@ -246,7 +306,6 @@ grab("js/data.js").grab("js/dom-utilities.js").grab("js/utilities.js").grab("js/
         ])
       )
     );
-    $("input-field").hidden = mode.type !== "typing";
     updateAvailable();
   }
 
@@ -268,11 +327,44 @@ grab("js/data.js").grab("js/dom-utilities.js").grab("js/utilities.js").grab("js/
     $("hold-label").hidden = mode.type !== "draw";
   }
 
-  $("mode-list").addEventListener("change", (ev) => {
-    settings.mode = ev.target.value;
+  // Remember the mode just started; keep the last two different ones.
+  function rememberMode() {
+    const { prompt, answer } = settings;
+    settings.recent = [{ prompt, answer }, ...settings.recent.filter((r) => r.prompt !== prompt || r.answer !== answer)].slice(0, 2);
     saveSettings();
-    renderFilters();
+  }
+
+  $("recent-list").addEventListener("click", (ev) => {
+    const btn = ev.target.closest("button");
+    if (!btn) return;
+    settings.prompt = btn.dataset.prompt;
+    settings.answer = btn.dataset.answer;
+    saveSettings();
+    showStep(2);
   });
+  $("prompt-list").addEventListener("click", (ev) => {
+    const btn = ev.target.closest("button");
+    if (!btn) return;
+    settings.prompt = btn.dataset.prompt;
+    // Keep the answer if it still fits; otherwise it has to be picked again.
+    if (!currentMode()) settings.answer = null;
+    saveSettings();
+    showStep(1);
+  });
+  $("answer-list").addEventListener("click", (ev) => {
+    const btn = ev.target.closest("button");
+    if (!btn) return;
+    settings.answer = btn.dataset.answer;
+    saveSettings();
+    showStep(2);
+  });
+  for (const id of STEPS) {
+    const i = STEPS.indexOf(id);
+    $(id).querySelector(".step-next")?.addEventListener("click", () => showStep(i + 1));
+    $(id).querySelector(".step-back")?.addEventListener("click", () => showStep(i - 1));
+    $(id).querySelector(".step-restart")?.addEventListener("click", () => showStep(0));
+  }
+
   $("level-list").addEventListener("change", (ev) => {
     settings.level = ev.target.value;
     saveSettings();
@@ -290,11 +382,6 @@ grab("js/data.js").grab("js/dom-utilities.js").grab("js/utilities.js").grab("js/
   $("hide-options").addEventListener("change", (ev) => {
     settings.hideOptions = ev.target.checked;
     saveSettings();
-  });
-  $("input-list").addEventListener("change", (ev) => {
-    settings.input = ev.target.value;
-    saveSettings();
-    updateAvailable();
   });
   $("filter-list").addEventListener("change", () => {
     settings.filters[currentMode().source] = [...$("filter-list").querySelectorAll("input:checked")].map((i) => i.value);
@@ -318,11 +405,18 @@ grab("js/data.js").grab("js/dom-utilities.js").grab("js/utilities.js").grab("js/
     answered: false, revealed: true, drawn: [], checking: false, startedAt: 0, deadline: 0, raf: 0, options: [],
   };
 
+  // Back to the menu from a round: the last step, to tweak and restart the same mode.
+  const showMenu = () => {
+    showScreen("menu");
+    showStep(STEPS.length - 1);
+  };
+
   const showScreen = (id) => {
     for (const s of ["menu", "quiz", "results"]) $(s).hidden = s !== id;
   };
 
   function startQuiz() {
+    rememberMode();
     state.mode = currentMode();
     state.level = currentLevel();
     state.pool = pool(state.mode);
@@ -409,7 +503,7 @@ grab("js/data.js").grab("js/dom-utilities.js").grab("js/utilities.js").grab("js/
     $("choices").hidden = mode.type !== "choice" || !state.revealed;
     $("reveal").hidden = state.revealed;
     $("type-form").hidden = !typing;
-    $("keyboard").hidden = !(typing && settings.input === "kana");
+    $("keyboard").hidden = !(typing && mode.input === "kana");
     $("draw").hidden = !drawing;
     $("feedback-draw").hidden = true;
 
@@ -417,7 +511,7 @@ grab("js/data.js").grab("js/dom-utilities.js").grab("js/utilities.js").grab("js/
       startDrawing(item);
     } else if (typing) {
       const input = $("type-input");
-      const kana = settings.input === "kana";
+      const kana = mode.input === "kana";
       input.value = "";
       input.readOnly = kana;
       input.className = kana ? "jp" : "";
@@ -487,13 +581,13 @@ grab("js/data.js").grab("js/dom-utilities.js").grab("js/utilities.js").grab("js/
   function acceptedAnswers(item) {
     const { mode } = state;
     const promptText = mode.prompt(item).text;
-    const norm = settings.input === "kana" ? normalizeKana : normalizeRomaji;
+    const norm = mode.input === "kana" ? normalizeKana : normalizeRomaji;
     const accepted = new Set();
     for (const e of state.pool) {
       if (mode.prompt(e).text !== promptText) continue;
-      accepted.add(norm(answerFace(mode, e).text));
+      accepted.add(norm(mode.answer(e).text));
       // Accept ō-style input for long vowels written "oo" too (おおきい → ōkii).
-      if (settings.input === "romaji") accepted.add(norm(e.romaji.replace(/oo/g, "ou")));
+      if (mode.input === "romaji") accepted.add(norm(e.romaji.replace(/oo/g, "ou")));
     }
     return { accepted, norm };
   }
@@ -512,7 +606,8 @@ grab("js/data.js").grab("js/dom-utilities.js").grab("js/utilities.js").grab("js/
       const reading = `${e.kana} · ${e.romaji}`;
       switch (f.kind) {
         case "kanji": return `${f.text} (${reading} · ${e.english})`;
-        case "hiragana": return `${f.text} (${e.romaji} · ${e.english})`;
+        case "hiragana":
+        case "katakana": return `${f.text} (${e.romaji} · ${e.english})`;
         case "romaji": return `${f.text} (${e.kana} · ${e.english})`;
         default: return `${f.text} (${e.kanji ? e.kanji + " · " : ""}${reading})`;
       }
@@ -531,7 +626,12 @@ grab("js/data.js").grab("js/dom-utilities.js").grab("js/utilities.js").grab("js/
     }
     if (typed == null) return "";
     const t = typed.trim();
-    if (settings.input === "kana") {
+    if (mode.source === "kana") {
+      if (mode.input === "kana") return `${t} (${kanaToRomaji(t)})`;
+      const kana = KANA.find((k) => k.romaji === normalizeRomaji(t));
+      return kana ? `${t} (${mode.scripts.map((s) => kana[s]).join(" · ")})` : t;
+    }
+    if (mode.input === "kana") {
       const word = WORDS.find((w) => w.kana === t);
       return `${t} (${kanaToRomaji(t)}${word ? " = " + (word.kanji ? word.kanji + " · " : "") + word.english : ""})`;
     }
@@ -546,7 +646,7 @@ grab("js/data.js").grab("js/dom-utilities.js").grab("js/utilities.js").grab("js/
 
     const { mode } = state;
     const item = state.questions[state.index];
-    const correctFace = answerFace(mode, item);
+    const correctFace = mode.answer(item);
     let correct = false;
 
     if (mode.type === "choice") {
@@ -663,7 +763,7 @@ grab("js/data.js").grab("js/dom-utilities.js").grab("js/utilities.js").grab("js/
     if (state.mode.type === "choice" && /^[1-9]$/.test(ev.key)) {
       const i = Number(ev.key) - 1;
       if (i < state.options.length) answer({ choice: i });
-    } else if (state.mode.type === "typing" && settings.input === "kana" && ev.key === "Backspace") {
+    } else if (state.mode.type === "typing" && state.mode.input === "kana" && ev.key === "Backspace") {
       ev.preventDefault();
       keyboard.edit("back");
     }
@@ -672,7 +772,7 @@ grab("js/data.js").grab("js/dom-utilities.js").grab("js/utilities.js").grab("js/
   $("quit").addEventListener("click", () => {
     cancelAnimationFrame(state.raf);
     state.token++;
-    showScreen("menu");
+    showMenu();
   });
 
   // ---- Drawing (writing modes) --------------------------------------------------
@@ -825,7 +925,7 @@ grab("js/data.js").grab("js/dom-utilities.js").grab("js/utilities.js").grab("js/
     const avg = state.times.reduce((a, b) => a + b, 0) / state.times.length;
     const percent = Math.round((state.score / QUESTIONS_PER_ROUND) * 100);
 
-    const key = `best:${mode.id}:${level.id}${mode.type === "typing" ? ":" + settings.input : ""}${hidingOptions() ? ":hidden" : ""}${settings.noTimer ? ":untimed" : ""}`;
+    const key = `best:${mode.promptId}:${mode.answerId}:${level.id}${hidingOptions() ? ":hidden" : ""}${settings.noTimer ? ":untimed" : ""}`;
     const best = store.get(key, null);
     const isBest = !best || state.score > best.score || (state.score === best.score && avg < best.avg);
     if (isBest) store.set(key, { score: state.score, avg });
@@ -854,7 +954,7 @@ grab("js/data.js").grab("js/dom-utilities.js").grab("js/utilities.js").grab("js/
 
   $("start").addEventListener("click", startQuiz);
   $("again").addEventListener("click", startQuiz);
-  $("to-menu").addEventListener("click", () => showScreen("menu"));
+  $("to-menu").addEventListener("click", showMenu);
 
-  ctx.game = { start: renderMenu };
+  ctx.game = { start: () => showStep(0) };
 });

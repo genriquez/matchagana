@@ -17,42 +17,69 @@
 
   <main>
     <section id="menu" class="menu">
-      <fieldset>
-        <legend>1. Mode</legend>
-        <div id="mode-list"></div>
-      </fieldset>
+      <p id="menu-progress" class="menu-progress muted"></p>
 
-      <fieldset>
-        <legend>2. Content</legend>
-        <div class="filter-actions">
-          <button type="button" class="link" id="filter-all">Select all</button>
-          <button type="button" class="link" id="filter-none">Clear</button>
+      <div id="step-prompt" class="menu-step">
+        <fieldset id="recent-field" hidden>
+          <legend>Recent</legend>
+          <div id="recent-list" class="mode-list"></div>
+        </fieldset>
+
+        <fieldset>
+          <legend>What do you want to see?</legend>
+          <div id="prompt-list" class="mode-list"></div>
+        </fieldset>
+
+        <div class="step-nav">
+          <button type="button" class="primary step-next">Next</button>
         </div>
-        <div id="filter-list" class="chip-list"></div>
-      </fieldset>
+      </div>
 
-      <fieldset>
-        <legend>3. Difficulty</legend>
-        <div id="level-list" class="level-list"></div>
-      </fieldset>
+      <div id="step-answer" class="menu-step" hidden>
+        <fieldset>
+          <legend>How do you want to answer?</legend>
+          <p id="answer-shown" class="step-summary muted"></p>
+          <div id="answer-list" class="mode-list"></div>
+        </fieldset>
 
-      <fieldset id="input-field" hidden>
-        <legend>4. Answer with</legend>
-        <div id="input-list" class="chip-list"></div>
-      </fieldset>
-
-      <fieldset>
-        <legend>Options</legend>
-        <div class="chip-list">
-          <label class="chip"><input type="checkbox" id="no-timer"> <span>No time limit (any level)</span></label>
-          <label class="chip" id="hide-label" hidden><input type="checkbox" id="hide-options"> <span>Hide options until I click Show</span></label>
-          <label class="chip" id="hold-label" hidden><input type="checkbox" id="hold-correct"> <span>Drawing: stay on correct answers until I press Next</span></label>
+        <div class="step-nav">
+          <button type="button" class="step-back">Back</button>
+          <button type="button" class="primary step-next">Next</button>
         </div>
-      </fieldset>
+      </div>
 
-      <div class="start-row">
-        <button type="button" id="start" class="primary">Start</button>
-        <span id="available" class="muted"></span>
+      <div id="step-setup" class="menu-step" hidden>
+        <p id="setup-mode" class="step-summary"></p>
+
+        <fieldset>
+          <legend>Content</legend>
+          <div class="filter-actions">
+            <button type="button" class="link" id="filter-all">Select all</button>
+            <button type="button" class="link" id="filter-none">Clear</button>
+          </div>
+          <div id="filter-list" class="chip-list"></div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Difficulty</legend>
+          <div id="level-list" class="level-list"></div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Options</legend>
+          <div class="chip-list">
+            <label class="chip"><input type="checkbox" id="no-timer"> <span>No time limit (any level)</span></label>
+            <label class="chip" id="hide-label" hidden><input type="checkbox" id="hide-options"> <span>Hide options until I click Show</span></label>
+            <label class="chip" id="hold-label" hidden><input type="checkbox" id="hold-correct"> <span>Drawing: stay on correct answers until I press Next</span></label>
+          </div>
+        </fieldset>
+
+        <div class="step-nav">
+          <button type="button" class="step-back">Back</button>
+          <button type="button" class="step-restart" title="Back to step 1 to pick what is shown">Start over</button>
+          <button type="button" id="start" class="primary">Start</button>
+          <span id="available" class="muted"></span>
+        </div>
       </div>
     </section>
 

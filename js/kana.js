@@ -4,6 +4,7 @@
 //                             // "small" (つ→っ), toggling back; null if it can't
 //   baseKana(ch)              // strip voicing marks: が → か, ぱ → は
 //   kanaToRomaji(str)         // "がっこう" → "gakkou" (handles yoon, っ and ー)
+//   toKatakana(str)           // "ねこ" → "ネコ" (other characters unchanged)
 //   normalizeRomaji(s)        // for comparing typed romaji: lowercase, no
 //                             // spaces/hyphens/apostrophes, macrons spelled out
 //   normalizeKana(s)          // for comparing typed kana: no whitespace
@@ -79,6 +80,10 @@ grab("js/data.js").run((ctx) => {
     return out;
   }
 
+  // Hiragana → katakana by code point (ぁ–ゖ map onto ァ–ヶ); anything else is kept.
+  const toKatakana = (str) =>
+    str.replace(/[ぁ-ゖ]/g, (c) => String.fromCharCode(c.charCodeAt(0) + 0x60));
+
   // ---- Normalizing typed answers --------------------------------------------
 
   const normalizeRomaji = (s) =>
@@ -101,5 +106,5 @@ grab("js/data.js").run((ctx) => {
     return [...out];
   }
 
-  ctx.kana = { applyModifier, baseKana, kanaToRomaji, normalizeRomaji, normalizeKana, lookalikesOf };
+  ctx.kana = { applyModifier, baseKana, kanaToRomaji, toKatakana, normalizeRomaji, normalizeKana, lookalikesOf };
 });
