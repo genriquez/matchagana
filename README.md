@@ -19,6 +19,8 @@ There's nothing to install or build. Open `index.html` in a browser, or put the 
 
 - `index.html`: page layout
 - `style.css`: styles, including light and dark themes
+- `css/keyboard.css`: styles for the on-screen keyboard
 - `data.js`: kana, vocabulary and lookalike tables (add words here)
 - `draw.js`: drawing pad and handwriting matching
 - `game.js`: quiz logic
+- `js/keyboard.js`: on-screen kana keyboard

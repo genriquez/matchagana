@@ -544,7 +544,7 @@
       input.placeholder = kana ? "Use the keyboard below" : "Type the reading in romaji";
       input.disabled = false;
       $("type-form").querySelector("button").disabled = false;
-      if (kana) renderKeyboard();
+      if (kana) keyboard.enable();
       else input.focus();
     } else {
       state.options = buildOptions(item);
@@ -694,7 +694,7 @@
       input.disabled = true;
       input.classList.add(correct ? "correct" : "wrong");
       $("type-form").querySelector("button").disabled = true;
-      $("keyboard").querySelectorAll("button").forEach((b) => (b.disabled = true));
+      keyboard.disable();
     }
 
     const yours = correct ? "" : describeAnswer(choice, typed, drawn);
@@ -790,7 +790,7 @@
       if (i < state.options.length) answer({ choice: i });
     } else if (state.mode.type === "typing" && settings.input === "kana" && ev.key === "Backspace") {
       ev.preventDefault();
-      editKana("back");
+      keyboard.edit("back");
     }
   });
 
@@ -951,67 +951,10 @@
 
   // ---- Kana keyboard ----------------------------------------------------------
 
-  const KB_ROWS = [
-    "あいうえお", "かきくけこ", "さしすせそ", "たちつてと", "なにぬねの",
-    "はひふへほ", "まみむめも", "や ゆ よ", "らりるれろ", "わ を ん",
-  ];
-  const romajiOf = new Map(KANA.map((k) => [k.hira, k.romaji]));
-
-  function renderKeyboard() {
-    const kb = $("keyboard");
-    if (kb.childElementCount) {
-      kb.querySelectorAll("button").forEach((b) => (b.disabled = false));
-      return;
-    }
-    const grid = el("div", { className: "kb-grid" });
-    for (const row of KB_ROWS) {
-      for (const ch of row) {
-        if (ch === " ") {
-          grid.append(el("span", { className: "kb-blank" }));
-          continue;
-        }
-        const b = el("button", { type: "button", className: "kb-key", lang: "ja", textContent: ch, title: romajiOf.get(ch) || "" });
-        b.dataset.ch = ch;
-        grid.append(b);
-      }
-    }
-    const mods = el("div", { className: "kb-mods" }, [
-      ["dak", "゛", "Dakuten: か→が"],
-      ["han", "゜", "Handakuten: は→ぱ"],
-      ["small", "小", "Small kana: つ→っ, や→ゃ"],
-      ["ー", "ー", "Long vowel mark"],
-      ["back", "⌫", "Backspace"],
-      ["clear", "Clear", "Clear"],
-    ].map(([action, label, title]) => {
-      const b = el("button", { type: "button", className: "kb-key kb-mod", lang: "ja", textContent: label, title });
-      b.dataset.action = action;
-      return b;
-    }));
-    const enter = el("button", { type: "button", className: "kb-key kb-enter primary", textContent: "Check ⏎" });
-    enter.dataset.action = "enter";
-    mods.append(enter);
-    kb.replaceChildren(grid, mods);
-  }
-
-  function editKana(action, ch) {
-    const input = $("type-input");
-    const chars = [...input.value];
-    if (ch) chars.push(ch);
-    else if (action === "back") chars.pop();
-    else if (action === "clear") chars.length = 0;
-    else if (action === "ー") chars.push("ー");
-    else if (chars.length) {
-      const changed = applyModifier(action, chars.at(-1));
-      if (changed) chars[chars.length - 1] = changed;
-    }
-    input.value = chars.join("");
-  }
-
-  $("keyboard").addEventListener("click", (ev) => {
-    const b = ev.target.closest("button");
-    if (!b || state.answered) return;
-    if (b.dataset.action === "enter") $("type-form").requestSubmit();
-    else editKana(b.dataset.action, b.dataset.ch);
+  const keyboard = Keyboard.create($("keyboard"), {
+    input: $("type-input"),
+    modify: applyModifier,
+    onEnter: () => $("type-form").requestSubmit(),
   });
 
   // ---- Results ----------------------------------------------------------------
