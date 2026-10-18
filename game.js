@@ -1,4 +1,7 @@
-(() => {
+grab("data.js").grab("draw.js").grab("js/keyboard.js").run((ctx) => {
+  const { KANA, KANA_GROUPS, WORDS, WORD_THEMES, KANA_LOOKALIKES, KANJI_LOOKALIKES } = ctx.data;
+  const { draw: Draw, keyboard: Keyboard } = ctx;
+
   // ---- Helpers --------------------------------------------------------------
 
   const $ = (id) => document.getElementById(id);
@@ -995,5 +998,5 @@
   $("again").addEventListener("click", startQuiz);
   $("to-menu").addEventListener("click", () => showScreen("menu"));
 
-  renderMenu();
-})();
+  ctx.game = { start: renderMenu };
+});

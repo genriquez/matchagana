@@ -1,15 +1,15 @@
 // On-screen hiragana keyboard for Matchagana's typing modes. Writes into a
 // text input; the modifier keys (゛ ゜ 小) change the last character typed.
 //
-//   const kb = Keyboard.create(container, { input, modify, onEnter });
+//   const kb = ctx.keyboard.create(container, { input, modify, onEnter });
 //   kb.enable();       // after a new question
 //   kb.disable();      // after answering
 //   kb.edit("back");   // e.g. from a physical Backspace key
 //
 // modify(kind, ch) returns ch changed by "dak" | "han" | "small", or null.
-// Key titles show each kana's romaji, taken from the KANA global (data.js).
+// Key titles show each kana's romaji, taken from ctx.data.KANA.
 
-const Keyboard = (() => {
+grab("data.js").grab("css/keyboard.css").run((ctx) => {
   const ROWS = [
     "あいうえお", "かきくけこ", "さしすせそ", "たちつてと", "なにぬねの",
     "はひふへほ", "まみむめも", "や ゆ よ", "らりるれろ", "わ を ん",
@@ -30,7 +30,7 @@ const Keyboard = (() => {
   };
 
   function create(container, { input, modify, onEnter }) {
-    const romajiOf = new Map(KANA.map((k) => [k.hira, k.romaji]));
+    const romajiOf = new Map(ctx.data.KANA.map((k) => [k.hira, k.romaji]));
     let disabled = false;
 
     const grid = el("div", { className: "kb-grid" });
@@ -87,5 +87,5 @@ const Keyboard = (() => {
     };
   }
 
-  return { create };
-})();
+  ctx.keyboard = { create };
+});

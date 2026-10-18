@@ -10,7 +10,7 @@
 // On easier levels each stroke may first be shifted a few grid px on its own
 // toward where it fits the glyph best (see bestOffsets), forgiving misplaced strokes.
 
-const Draw = (() => {
+grab().run((ctx) => {
   const GRID = 64;
   const FIT = 0.75;       // share of the grid the character's longer side fills
   const LINE = 3;         // stroke width (grid px) when rasterizing a drawing
@@ -344,5 +344,5 @@ const Draw = (() => {
     return c;
   }
 
-  return { createPad, match, thumbnail, ensureFont };
-})();
+  ctx.draw = { createPad, match, thumbnail, ensureFont };
+});
