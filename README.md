@@ -20,10 +20,11 @@ There's nothing to install or build. Open `index.html` in a browser, or put the 
 - `index.html`: page layout
 - `style.css`: styles, including light and dark themes
 - `css/keyboard.css`: styles for the on-screen keyboard
-- `data.js`: kana, vocabulary and lookalike tables (add words here)
-- `draw.js`: drawing pad and handwriting matching
+- `js/data.js`: kana, vocabulary and lookalike tables (add words here)
+- `js/draw.js`: drawing pad and handwriting matching
 - `game.js`: quiz logic
 - `js/keyboard.js`: on-screen kana keyboard
 - `js/dom-utilities.js`: small DOM helpers
 - `js/utilities.js`: small generic helpers (shuffle, edit distance, formatting)
 - `js/storage.js`: saving settings and best scores in the browser
+- `js/kana.js`: kana helpers (voicing marks, kana to romaji, answer normalizing)

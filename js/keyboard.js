@@ -1,15 +1,15 @@
 // On-screen hiragana keyboard for Matchagana's typing modes. Writes into a
 // text input; the modifier keys (゛ ゜ 小) change the last character typed.
 //
-//   const kb = ctx.keyboard.create(container, { input, modify, onEnter });
+//   const kb = ctx.keyboard.create(container, { input, onEnter });
 //   kb.enable();       // after a new question
 //   kb.disable();      // after answering
 //   kb.edit("back");   // e.g. from a physical Backspace key
 //
-// modify(kind, ch) returns ch changed by "dak" | "han" | "small", or null.
-// Key titles show each kana's romaji, taken from ctx.data.KANA.
+// The modifier keys use ctx.kana.applyModifier; key titles show each kana's
+// romaji, taken from ctx.data.KANA.
 
-grab("data.js").grab("js/dom-utilities.js").grab("css/keyboard.css").run((ctx) => {
+grab("js/data.js").grab("js/kana.js").grab("js/dom-utilities.js").grab("css/keyboard.css").run((ctx) => {
   const ROWS = [
     "あいうえお", "かきくけこ", "さしすせそ", "たちつてと", "なにぬねの",
     "はひふへほ", "まみむめも", "や ゆ よ", "らりるれろ", "わ を ん",
@@ -24,8 +24,9 @@ grab("data.js").grab("js/dom-utilities.js").grab("css/keyboard.css").run((ctx) =
   ];
 
   const { el } = ctx.dom;
+  const { applyModifier } = ctx.kana;
 
-  function create(container, { input, modify, onEnter }) {
+  function create(container, { input, onEnter }) {
     const romajiOf = new Map(ctx.data.KANA.map((k) => [k.hira, k.romaji]));
     let disabled = false;
 
@@ -58,7 +59,7 @@ grab("data.js").grab("js/dom-utilities.js").grab("css/keyboard.css").run((ctx) =
       else if (action === "clear") chars.length = 0;
       else if (action === "ー") chars.push("ー");
       else if (chars.length) {
-        const changed = modify(action, chars.at(-1));
+        const changed = applyModifier(action, chars.at(-1));
         if (changed) chars[chars.length - 1] = changed;
       }
       input.value = chars.join("");
