@@ -24,3 +24,6 @@ There's nothing to install or build. Open `index.html` in a browser, or put the 
 - `draw.js`: drawing pad and handwriting matching
 - `game.js`: quiz logic
 - `js/keyboard.js`: on-screen kana keyboard
+- `js/dom-utilities.js`: small DOM helpers
+- `js/utilities.js`: small generic helpers (shuffle, edit distance, formatting)
+- `js/storage.js`: saving settings and best scores in the browser

@@ -1,55 +1,11 @@
-grab("data.js").grab("draw.js").grab("js/keyboard.js").run((ctx) => {
+grab("data.js").grab("js/dom-utilities.js").grab("js/utilities.js").grab("js/storage.js")
+  .grab("draw.js").grab("js/keyboard.js").run((ctx) => {
   const { KANA, KANA_GROUPS, WORDS, WORD_THEMES, KANA_LOOKALIKES, KANJI_LOOKALIKES } = ctx.data;
+  const { $, el } = ctx.dom;
+  const { shuffle, levenshtein, groupLookup, fmtSecs, pct } = ctx.utils;
   const { draw: Draw, keyboard: Keyboard } = ctx;
 
-  // ---- Helpers --------------------------------------------------------------
-
-  const $ = (id) => document.getElementById(id);
-  const el = (tag, props = {}, children = []) => {
-    const node = Object.assign(document.createElement(tag), props);
-    for (const c of [].concat(children)) node.append(c);
-    return node;
-  };
-
-  const shuffle = (arr) => {
-    for (let i = arr.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [arr[i], arr[j]] = [arr[j], arr[i]];
-    }
-    return arr;
-  };
-
-  const store = {
-    get(key, fallback) {
-      try {
-        const v = localStorage.getItem("matchagana:" + key);
-        return v == null ? fallback : JSON.parse(v);
-      } catch {
-        return fallback;
-      }
-    },
-    set(key, value) {
-      try {
-        localStorage.setItem("matchagana:" + key, JSON.stringify(value));
-      } catch {}
-    },
-  };
-
-  function levenshtein(a, b) {
-    const dp = Array.from({ length: b.length + 1 }, (_, i) => i);
-    for (let i = 1; i <= a.length; i++) {
-      let prev = dp[0];
-      dp[0] = i;
-      for (let j = 1; j <= b.length; j++) {
-        const tmp = dp[j];
-        dp[j] = Math.min(dp[j] + 1, dp[j - 1] + 1, prev + (a[i - 1] === b[j - 1] ? 0 : 1));
-        prev = tmp;
-      }
-    }
-    return dp[b.length];
-  }
-
-  const fmtSecs = (ms) => (ms / 1000).toFixed(1) + " s";
+  const store = ctx.storage.createStore("matchagana:");
 
   // ---- Kana modifiers (dakuten, handakuten, small) ---------------------------
 
@@ -117,21 +73,6 @@ grab("data.js").grab("draw.js").grab("js/keyboard.js").run((ctx) => {
 
   // ---- Similarity -------------------------------------------------------------
 
-  function groupLookup(groups) {
-    const m = new Map();
-    groups.forEach((g, i) => {
-      for (const ch of g) {
-        if (!m.has(ch)) m.set(ch, new Set());
-        m.get(ch).add(i);
-      }
-    });
-    return (a, b) => {
-      const sa = m.get(a), sb = m.get(b);
-      if (!sa || !sb) return false;
-      for (const x of sa) if (sb.has(x)) return true;
-      return false;
-    };
-  }
   const kanaLooksAlike = groupLookup(KANA_LOOKALIKES);
   const kanjiLooksAlike = groupLookup(KANJI_LOOKALIKES);
 
@@ -806,7 +747,6 @@ grab("data.js").grab("draw.js").grab("js/keyboard.js").run((ctx) => {
   // ---- Drawing (writing modes) --------------------------------------------------
 
   const pad = Draw.createPad($("draw-canvas"));
-  const pct = (score) => `${Math.round(score * 100)}%`;
   const drawButtons = () => $("draw").querySelectorAll("button");
 
   function startDrawing(item) {
@@ -965,16 +905,16 @@ grab("data.js").grab("draw.js").grab("js/keyboard.js").run((ctx) => {
   function showResults() {
     const { mode, level } = state;
     const avg = state.times.reduce((a, b) => a + b, 0) / state.times.length;
-    const pct = Math.round((state.score / QUESTIONS_PER_ROUND) * 100);
+    const percent = Math.round((state.score / QUESTIONS_PER_ROUND) * 100);
 
     const key = `best:${mode.id}:${level.id}${mode.type === "typing" ? ":" + settings.input : ""}${hidingOptions() ? ":hidden" : ""}${settings.noTimer ? ":untimed" : ""}`;
     const best = store.get(key, null);
     const isBest = !best || state.score > best.score || (state.score === best.score && avg < best.avg);
     if (isBest) store.set(key, { score: state.score, avg });
 
-    $("results-title").textContent = pct === 100 ? "完璧! Perfect" : pct >= 80 ? "すごい! Great job" : pct >= 50 ? "いいね! Good" : "がんばって! Keep going";
+    $("results-title").textContent = percent === 100 ? "完璧! Perfect" : percent >= 80 ? "すごい! Great job" : percent >= 50 ? "いいね! Good" : "がんばって! Keep going";
     $("results-stats").textContent =
-      `${state.score}/${QUESTIONS_PER_ROUND} correct (${pct}%) · best streak ${state.bestStreak} · avg ${fmtSecs(avg)} per question`;
+      `${state.score}/${QUESTIONS_PER_ROUND} correct (${percent}%) · best streak ${state.bestStreak} · avg ${fmtSecs(avg)} per question`;
     $("results-best").textContent = isBest
       ? `New best for ${mode.label} · ${level.label}!`
       : `Best for ${mode.label} · ${level.label}: ${best.score}/${QUESTIONS_PER_ROUND}, avg ${fmtSecs(best.avg)}`;

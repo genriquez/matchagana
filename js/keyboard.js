@@ -9,7 +9,7 @@
 // modify(kind, ch) returns ch changed by "dak" | "han" | "small", or null.
 // Key titles show each kana's romaji, taken from ctx.data.KANA.
 
-grab("data.js").grab("css/keyboard.css").run((ctx) => {
+grab("data.js").grab("js/dom-utilities.js").grab("css/keyboard.css").run((ctx) => {
   const ROWS = [
     "あいうえお", "かきくけこ", "さしすせそ", "たちつてと", "なにぬねの",
     "はひふへほ", "まみむめも", "や ゆ よ", "らりるれろ", "わ を ん",
@@ -23,11 +23,7 @@ grab("data.js").grab("css/keyboard.css").run((ctx) => {
     ["clear", "Clear", "Clear"],
   ];
 
-  const el = (tag, props = {}, children = []) => {
-    const node = Object.assign(document.createElement(tag), props);
-    for (const c of [].concat(children)) node.append(c);
-    return node;
-  };
+  const { el } = ctx.dom;
 
   function create(container, { input, modify, onEnter }) {
     const romajiOf = new Map(ctx.data.KANA.map((k) => [k.hira, k.romaji]));
